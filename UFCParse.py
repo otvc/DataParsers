@@ -80,7 +80,10 @@ class ParserUFCStats(Parser):
         extr_total_stats = ['Fighter', 'KD', 'Sig. str.', 'Sig. str. %', 'Total str.', 'Td',
                              'Td %', 'Sub. att', 'Rev.', 'Ctrl']
         
-        self.map_extr_ts = {ets: kts for kts, ets in zip(self.keys_total_stats, extr_total_stats)}
+        self.map_extr_several_total = {'Sig. str.': ('sig_strikes', 'sig_strikes_total'),
+                                       'Total str.': ('total_strikes', 'all_total_str'),
+                                       'Td': ('takedown', 'takedown_total')}
+        
 
     
     def ExtractTournamentType(str):
@@ -203,6 +206,53 @@ class ParserUFCStats(Parser):
     def GetTotalStats(self, table:str):
         if isinstance(table, str):
             table = BeautifulSoup(table, features='lxml')
+        extr_table = {k: elem[0] for k, elem in self.ExtractTable(table).items()}
+
+        information = dict.fromkeys(self.keys_total_stats)
+
+        #'Fighter', 'KD', 'Sig. str.', 'Sig. str. %', 'Total str.', 'Td',
+        #'Td %', 'Sub. att', 'Rev.', 'Ctrl'
+
+        #'knockdown', 'sig_strikes', 'sig_strikes_total', 
+        #'total_strikes', 'all_total_str',
+        #'takedown', 'takedown_total' ,'sub_att', 'rev', 'ctrl'
+        information['knockdown'] = list(map(int, extr_table['KD'].split(';')))
+        information['rev'] = list(map(int, extr_table['Rev.'].split(';')))
+        controls_str = extr_table['Ctrl'].split(';')
+        controls_f1 = list(map(int, controls_str[0].split(':')))
+        controls_f2 = list(map(int, controls_str[1].split(':')))
+        information['ctrl'] = [controls_f1[0]*60+ controls_f1[1], controls_f2[0]*60 + controls_f2[1]]
+
+        for key in self.map_extr_several_total.keys():
+            feature_1, feature_2 = self.__split_stats_halper(extr_table[key])
+            clear_features = self.map_extr_several_total[key]
+            information[clear_features[0]] = feature_1
+            information[clear_features[1]] = feature_2
+
+
+        #'Israel Adesanya;Alex Pereira', '0;0', '86 of 162;91 of 157', '53%;57%', 
+        # '119 of 209;140 of 214', '1 of 4;1 of 1', '25%;100%', '0;0', '0;0', '6:34;0:31'
+        return information 
+
+    '''
+    Because exist lines like 'a1 of b1;a2 of b2', we should to split it line to
+    two arrays: [a1, a2], [b1, b2]. For totals stats not want write similar code for it
+
+    Args:
+        line - str, which should contain structure 'a1 of b1;a2 of b2';
+        n_between - str, which split blocks with a1, b1 and a2, b2;
+        f_between - str, which split numbers a1 and b1, a2 and b2.
+    Return:
+        Two arrays which have structure: [a1, b1], [a2, b2]
+    '''
+    def __split_stats_halper(self, line:str, n_between = 'of', f_between = ';'):
+        stats_sc = line.split(f_between) #  str 'Sig. str.' equal 'n1 of n2; n3 of n4'
+        stats_bsc_1 = list(map(int, stats_sc[0].split(n_between))) # sig_str_by_fighter[0] element equal 'n1 of n2'
+        stats_bsc_2 = list(map(int, stats_sc[1].split(n_between))) # sig_str_by_fighter[1] element equal 'n3 of n4'
+        feature_1 = [stats_bsc_1[0], stats_bsc_2[0]]
+        feature_2 = [stats_bsc_1[1], stats_bsc_2[1]]
+        return feature_1, feature_2
+
         
         
 
