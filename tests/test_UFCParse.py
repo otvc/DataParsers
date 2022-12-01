@@ -60,7 +60,7 @@ def test_ExtractTournamentType():
     assert nt_extracted == 'NT'
 
 def test_GetTotalStats():
-    with open('tests/Pages/TotalStats.txt', 'r') as f:
+    with open('tests/Pages/TotalStats.html', 'r') as f:
         table = f.read()
 
     gt_keys = ['knockdown', 'sig_strikes', 'sig_strikes_total', 
@@ -106,12 +106,40 @@ def test_ExtractTBody():
     assert len(gt_row) == len(extracted_row)
     assert all(a == b for a,b in zip(extracted_row, gt_row))
 
+def test_ExtractTable():
+    with open('tests/Pages/TotalStats.html') as f:
+        tbody = f.read()
+    
+    gt_th = [['Fighter', 'KD', 'Sig. str.', 'Sig. str. %', 'Total str.', 'Td',
+               'Td %', 'Sub. att', 'Rev.', 'Ctrl']][0]
+
+    gt_tb = [['Israel Adesanya;Alex Pereira', '0;0', '86 of 162;91 of 157', '53%;57%', 
+              '119 of 209;140 of 214', '1 of 4;1 of 1', '25%;100%', '0;0', '0;0', '6:34;0:31']]
+    gt_row = gt_tb[0]
+
+    p = Parser()
+    extracted_table = p.ExtractTable(tbody)
+    extracted_values = extracted_table.values()
+    extracted_keys = list(extracted_table.keys())
+    extracted_tb = [column[0] for column in extracted_values]
+
+    assert len(gt_th) == len(extracted_keys)
+    assert all(a == b for a,b in zip(extracted_tb, gt_row))
+
+
     
 
     
 
 if __name__ == '__main__':
+    a = [[1, 2, 3], [4, 5, 6]]
+    print(a[0][:])
     test_ExtractTournamentType()
     test_GetTournaments()
+    
+    test_ExtractTBody()
+    test_ExtractTable()
+
     test_GetTotalStats()
-    print()
+
+

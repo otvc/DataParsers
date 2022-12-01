@@ -9,7 +9,7 @@ class Parser:
         pass
 
     '''
-    Value extracted with strip
+    Value extracted with strip 
     Args:
         tbody - string each contain information abou tbody
         sep - if td of column contain more than one paragraph, therefore several 
@@ -18,9 +18,53 @@ class Parser:
     Return:
         Matrix (list of lists), where value on row and columns equal
         text value on across row and column of tbody
+    
+    For their version  '\n' is interpreted like separator if paragraphs and
+    sep are put on place which contain one or more symbols '\n'
     '''
-    def ExtractTBody(self, tbody: str, sep: str = ';'):
-        pass
+    def ExtractTBody(self, tbody, sep: str = ';', row_tag = 'tr', colum_tag = 'td'):
+        if isinstance(tbody, str):
+            tbody = BeautifulSoup(tbody, features = 'lxml')
+
+        all_rows = tbody.find_all(row_tag)
+
+        ex_rows = []
+        
+        for row in all_rows:
+            ex_columns = []
+            all_columns = row.find_all(colum_tag)
+            for column in all_columns:
+                column_text = []
+                for elem in column.children:
+                    inner_text = elem.get_text().strip()
+                    if len(inner_text) > 0:
+                        column_text.append(inner_text)
+                column_text = sep.join(column_text)
+                ex_columns.append(column_text)
+            ex_rows.append(ex_columns)
+        
+        return ex_rows
+
+    def ExtractTable(self, table, sep: str = ';'):
+        if isinstance(table, str):
+            table = BeautifulSoup(table, features = 'lxml')
+        
+        thead = table.find('thead')
+        tbody = table.find('tbody')
+
+        columns_name = self.ExtractTBody(thead, sep, row_tag = 'tr', colum_tag='th')[0]
+        rows_features = self.ExtractTBody(tbody)
+
+        table = {column: [] for column in columns_name}
+        rows_features = [[rows_features[j][i] for j in range(len(rows_features))] for i in range(len(rows_features[0]))]
+        for i, column in enumerate(columns_name):
+            table[column] = rows_features[i]
+
+        return table
+
+
+
+        
 
 
 
@@ -29,6 +73,14 @@ class ParserUFCStats(Parser):
     def __init__(self) -> None:
         month_names = list(filter(lambda x: len(x) > 0, calendar.month_name))
         self.map_month_names = {month_names[i]: i + 1 for i in range(12)}
+
+        self.keys_total_stats = ['knockdown', 'sig_strikes', 'sig_strikes_total', 
+                                 'total_strikes', 'all_total_str', 
+                                 'takedown', 'takedown_total' ,'sub_att', 'rev', 'ctrl']
+        extr_total_stats = ['Fighter', 'KD', 'Sig. str.', 'Sig. str. %', 'Total str.', 'Td',
+                             'Td %', 'Sub. att', 'Rev.', 'Ctrl']
+        
+        self.map_extr_ts = {ets: kts for kts, ets in zip(self.keys_total_stats, extr_total_stats)}
 
     
     def ExtractTournamentType(str):
@@ -146,17 +198,11 @@ class ParserUFCStats(Parser):
     Auxiliary function for function GetFightStats.
     GetTotalStats help extract total_stats (look in description of function GetFightStats) 
     Args:
-        doc - is table with stats
+        table - is table with stats
     '''
-    def GetTotalStats(self, doc:str):
-        keys_info = ['knockdown', 'sig_strikes', 'sig_strikes_total', 
-                     'total_strikes', 'all_total_str', 
-                     'takedown', 'takedown_total' ,'sub_att', 'rev', 'ctrl']
-
-        information = {key: [] for key in keys_info}
-
-        table = BeautifulSoup(doc, features='lxml')
-
-        return information
+    def GetTotalStats(self, table:str):
+        if isinstance(table, str):
+            table = BeautifulSoup(table, features='lxml')
+        
         
 
