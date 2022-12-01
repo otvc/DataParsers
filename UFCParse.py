@@ -210,12 +210,6 @@ class ParserUFCStats(Parser):
 
         information = dict.fromkeys(self.keys_total_stats)
 
-        #'Fighter', 'KD', 'Sig. str.', 'Sig. str. %', 'Total str.', 'Td',
-        #'Td %', 'Sub. att', 'Rev.', 'Ctrl'
-
-        #'knockdown', 'sig_strikes', 'sig_strikes_total', 
-        #'total_strikes', 'all_total_str',
-        #'takedown', 'takedown_total' ,'sub_att', 'rev', 'ctrl'
         information['knockdown'] = list(map(int, extr_table['KD'].split(';')))
         information['rev'] = list(map(int, extr_table['Rev.'].split(';')))
         controls_str = extr_table['Ctrl'].split(';')
@@ -229,9 +223,6 @@ class ParserUFCStats(Parser):
             information[clear_features[0]] = feature_1
             information[clear_features[1]] = feature_2
 
-
-        #'Israel Adesanya;Alex Pereira', '0;0', '86 of 162;91 of 157', '53%;57%', 
-        # '119 of 209;140 of 214', '1 of 4;1 of 1', '25%;100%', '0;0', '0;0', '6:34;0:31'
         return information 
 
     '''
