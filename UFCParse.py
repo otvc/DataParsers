@@ -2,6 +2,7 @@ from bs4 import BeautifulSoup
 import re
 import calendar
 import datetime 
+import copy
 
 class Parser:
     
@@ -180,23 +181,123 @@ class ParserUFCStats(Parser):
             3.8. sub_att;
             3.9. rev;
             3.10. ctrl;
-        4. weight_class;
-        5. round;
-        6. seconds;
-        7. bonus;
-        8. round_stats - each fight contain information like total_stats but per round. For each fight it's array of map like total_stats;
-        9. sig_strikes - :
-            9.1. head;
-            9.2. body;
-            9.3. leg;
-            9.4. distance;
-            9.4. clinch;
-            9.5. ground;
-        10. sig_stats_per_round - same like round_stats but contain sig_strikes per round
+        4. total_stats_per_round
+        5. division;
+        6. round;
+        7. seconds;
+        8. bonuses;
+        9. round_stats - each fight contain information like total_stats but per round. For each fight it's array of map like total_stats;
+        10. sign_strikes - :
+            10.1. head;
+            10.2. head_total;
+            10.3. body;
+            10.4. body_total;
+            10.5. leg;
+            10.6. leg_total;
+            10.7. distance;
+            10.8. distance_total;
+            10.9. clinch;
+            10.10. clinch_total;
+            10.11. ground;
+            10.12. ground_total.
+        11. sign_stats_per_round - same like round_stats but contain sig_strikes per round
+        12. nicknames;
+        13. type;
+        14. method;
+        15. time_format;
+        16. referee;
+        17. details.
     '''
-    def GetFightStats(self, doc:str):
-        pass
-    
+    def GetFightStats(self, doc):
+        if isinstance(doc, str):
+            doc = BeautifulSoup(doc, features='html.parser')
+        information = dict()
+        
+        fighters_top_line = doc.find(attrs={'class':'b-fight-details__persons clearfix'})
+        a_fighters_names = fighters_top_line.find_all(attrs={'class':'b-link b-fight-details__person-link'})
+        fighter_1 = a_fighters_names[0].text.strip()
+        fighter_2 = a_fighters_names[1].text.strip()
+        information['fighters'] = [fighter_1, fighter_2]
+
+        a_nicknames = fighters_top_line.find_all(attrs = {'class': 'b-fight-details__person-title'})
+        nickname_1 = a_nicknames[0].text.strip()[1:-1]
+        nickname_2 = a_nicknames[1].text.strip()[1:-1]
+        information['nicknames'] = [nickname_1, nickname_2]
+
+        fight_results = fighters_top_line.find_all(attrs = {'class': 'b-fight-details__person-status'})
+        result_1 = fight_results[0].text.strip()
+        result_2 = fight_results[1].text.strip()
+        winner = 'winner'
+        information[winner] = 'without'
+        if result_1 == 'W':
+            information[winner] = fighter_1
+        elif result_2 == 'W':
+            information[winner] = fighter_2
+        
+        division_i = doc.find(attrs = {'class':'b-fight-details__fight-title'})
+        images = division_i.find_all('img')
+        fight_type = 'type'
+        if images:
+            bonuses = {fighter_1: [], fighter_2: []}
+            images.__iter__()
+            for image in images:
+                src = image['src']
+                result = re.search('\w*.png', src)[0]
+                if result:
+                    result = result[:-4]
+                    if result == 'belt':
+                        information[fight_type] = result
+                    elif result == 'fight':
+                        bonuses[fighter_1].append(result)
+                        bonuses[fighter_2].append(result)
+                    elif information[winner] != 'without':
+                        bonuses[information[winner]].append(result)
+        else:
+            information[fight_type] = 'normal'
+        information['bonuses'] = bonuses
+        
+        division = list(division_i.children)[-1].strip()
+        division = division.split(' ')[1]
+        information['division'] = division 
+
+        short_stats_line = doc.find(attrs={'class':'b-fight-details__content'})
+        
+        first_ssl_paragraph = short_stats_line.find_all(attrs={'class':'b-fight-details__text'})[0]
+        items_ssl_i = first_ssl_paragraph.find_all(attrs = {'class': 'b-fight-details__label'})
+        information['method'] = short_stats_line.find(attrs={'style':'font-style: normal'}).text.strip()
+        
+        round = items_ssl_i[1].next_sibling.strip()
+        round = int(round)
+        information['round'] = int(round)
+
+        times = items_ssl_i[2].next_sibling.strip()
+        minutes, seconds = list(map(int, times.split(':')))
+        information['seconds'] =  round*60*60+minutes*60+seconds
+
+        time_format = items_ssl_i[3].next_sibling.text.strip()
+        information['time_format'] = int(time_format[0])
+
+        referee = items_ssl_i[4].next_sibling.next_sibling.text.strip()
+        information['referee'] = referee
+
+        second_ssl_paragraph = short_stats_line.find_all(attrs={'class':'b-fight-details__text'})[1]
+        information['Details'] = list(second_ssl_paragraph.children)[-1].text.strip()
+
+        stats_sections = doc.find_all(attrs={'class': 'b-fight-details__section'})
+        total_stats_table = stats_sections[1].find('table')
+        thead_total_stats = total_stats_table.find('thead')
+        information['total_stats'] = self.GetTotalStats(total_stats_table)
+        sign_stats_table = stats_sections[3].next_sibling.next_sibling
+        thead_sign_stats = sign_stats_table.find('thead')
+        information['sign_strikes'] = self.GetSignificantStats(sign_stats_table)
+
+        tables = doc.find_all(attrs={'class': 'b-fight-details__table js-fight-table'})
+        information['total_stats_per_round'] = self.GetTotalStatsPerRound(tables[0], thead_total_stats)
+        information['sign_stats_per_round'] = self.GetSignificantStatsPerRound(tables[1], thead_sign_stats)
+        
+        return information
+
+
     '''
     Auxiliary function for function GetFightStats.
     GetTotalStats help extract total_stats (look in description of function GetFightStats) 
@@ -205,25 +306,78 @@ class ParserUFCStats(Parser):
     '''
     def GetTotalStats(self, table:str):
         if isinstance(table, str):
-            table = BeautifulSoup(table, features='lxml')
+            table = BeautifulSoup(table, features='html.parser')
         extr_table = {k: elem[0] for k, elem in self.ExtractTable(table).items()}
 
         information = dict.fromkeys(self.keys_total_stats)
 
-        information['knockdown'] = list(map(int, extr_table['KD'].split(';')))
-        information['rev'] = list(map(int, extr_table['Rev.'].split(';')))
-        controls_str = extr_table['Ctrl'].split(';')
-        controls_f1 = list(map(int, controls_str[0].split(':')))
-        controls_f2 = list(map(int, controls_str[1].split(':')))
-        information['ctrl'] = [controls_f1[0]*60+ controls_f1[1], controls_f2[0]*60 + controls_f2[1]]
+        self.ConvertStatsFromTable(information, extr_table, {'KD': 'knockdown', 'Rev.': 'rev'}, 
+                                   self.map_extr_several_total, {'Ctrl': 'ctrl'}, {'Ctrl': self.__convert_ctrl})
 
-        for key in self.map_extr_several_total.keys():
+        return information
+    
+    '''
+    Function, for extraction stats from table with significant strikes stats
+    '''
+    def GetSignificantStats(self, table:str):
+        if isinstance(table, str):
+            table = BeautifulSoup(table, features='lxml')
+        extr_table = {k: elem[0] for k, elem in self.ExtractTable(table).items()}
+        
+        need_extr_f = ['Head', 'Body', 'Leg', 'Distance', 'Clinch', 'Ground']
+        map_extr_several = {feature: (feature.lower(), feature.lower()+'_total') for feature in need_extr_f}
+
+        information = dict()
+
+        self.ConvertStatsFromTable(information, extr_table, map_to_several=map_extr_several)
+
+        return information
+    
+    def ConvertStatsFromTable(self,
+                              information: dict,
+                              extr_table: dict, 
+                              map_to_feature: dict[str, str] = {}, 
+                              map_to_several: dict[str, tuple[str, str]] = {},
+                              map_to_tf: dict = {},
+                              map_to_tf_call: dict = {}):
+
+        for key in map_to_feature.keys():
+            information[map_to_feature[key]] = list(map(int, extr_table[key].split(';')))
+
+        for key in map_to_tf.keys():
+            information[map_to_tf[key]] = map_to_tf_call[key](extr_table[key]) 
+
+        for key in map_to_several.keys():
             feature_1, feature_2 = self.__split_stats_halper(extr_table[key])
-            clear_features = self.map_extr_several_total[key]
+            clear_features = map_to_several[key]
             information[clear_features[0]] = feature_1
             information[clear_features[1]] = feature_2
-
-        return information 
+    
+    def GetTotalStatsPerRound(self, table, thead):
+        stats_per_round = self.GetStatsPerRound(table, thead, self.GetTotalStats)
+        return stats_per_round
+    
+    def GetSignificantStatsPerRound(self, table, thead):
+        stats_per_round = self.GetStatsPerRound(table, thead, self.GetSignificantStats)
+        return stats_per_round
+    
+    def GetStatsPerRound(self, table, thead, get_stats_from_tbody):
+        if isinstance(table, str):
+            table = BeautifulSoup(table, features='html.parser')
+        if isinstance(thead, str):
+            thead = BeautifulSoup(thead, features='html.parser')
+        tbodies = table.find_all('tbody')
+        tbodies_iter = tbodies.__iter__()
+        next(tbodies_iter)
+        stats_per_round = []
+        for tbody in tbodies_iter:
+            imagen_table = BeautifulSoup('<table></table>',  features='html.parser')
+            imagen_table.table.append(copy.copy(thead))
+            imagen_table.table.append(tbody)
+            stats_round = get_stats_from_tbody(imagen_table)
+            stats_per_round.append(stats_round)
+        
+        return stats_per_round
 
     '''
     Because exist lines like 'a1 of b1;a2 of b2', we should to split it line to
@@ -244,6 +398,8 @@ class ParserUFCStats(Parser):
         feature_2 = [stats_bsc_1[1], stats_bsc_2[1]]
         return feature_1, feature_2
 
-        
-        
-
+    def __convert_ctrl(self, ctrl_str: str):
+            controls_str = ctrl_str.split(';')
+            controls_f1 = list(map(int, controls_str[0].split(':')))
+            controls_f2 = list(map(int, controls_str[1].split(':')))
+            return  [controls_f1[0]*60+ controls_f1[1], controls_f2[0]*60 + controls_f2[1]]

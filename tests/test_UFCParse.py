@@ -12,6 +12,8 @@ from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.common.by import By
 from datetime import date
 
+from bs4 import BeautifulSoup
+
 
 def test_GetTournaments():
     with open('tests/Pages/Stats _ UFC.html', 'r') as f:
@@ -90,6 +92,50 @@ def test_GetTotalStats():
     assert all(a == b for a, b in zip(ex_keys, gt_keys))
     assert all(a == b for a, b in zip(gt_values, information))
 
+def test_GetSignificantStats():
+    with open('tests/Pages/SignificantStrike.html', 'r') as f:
+        table = f.read()
+
+    gt_keys = ['head', 'head_total', 'body', 'body_total', 
+               'leg', 'leg_total', 'distance', 'distance_total',  
+               'clinch', 'clinch_total', 'ground', 'ground_total']
+    gt_keys.sort()
+    gt_values = {
+        'head': [41, 42], 'head_total': [103, 89], 
+        'body': [21,  27], 'body_total': [29, 33], 
+        'leg': [24, 22], 'leg_total': [30, 35], 
+        'distance': [77, 76], 'distance_total': [148, 139],  
+        'clinch': [3, 14], 'clinch_total': [4, 17], 
+        'ground': [6, 1], 'ground_total': [10, 1]
+    }
+
+    pfc = ParserUFCStats()
+    information = pfc.GetSignificantStats(table)
+
+    ex_keys = list(information.keys())
+    ex_keys.sort()
+
+    assert len(ex_keys) == len(gt_keys)
+    assert all(a == b for a, b in zip(ex_keys, gt_keys))
+    assert all(a == b for a, b in zip(gt_values, information))
+
+def test_GetTotalStatsPerRound():
+    with open('tests/Pages/TotalStatsPerRound.html', 'r') as f:
+        table = f.read()
+    with open('tests/Pages/TotalStatsThead.html', 'r') as f:
+        thead = f.read()
+    pfc = ParserUFCStats()
+    informations = pfc.GetTotalStatsPerRound(table, thead)
+    ex_keys = list(informations[0].keys())
+
+def test_GetFightStats():
+    with open('tests/Pages/FightPage.html', 'r') as f:
+        doc = f.read()
+    
+    pfc = ParserUFCStats()
+    pfc.GetFightStats(doc)
+    
+    
 
 def test_ExtractTBody():
     with open('tests/Pages/TBody.html') as f:
@@ -139,5 +185,8 @@ if __name__ == '__main__':
     test_ExtractTable()
 
     test_GetTotalStats()
+    test_GetSignificantStats()
+    test_GetTotalStatsPerRound()
+    test_GetFightStats()
 
 
