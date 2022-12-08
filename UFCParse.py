@@ -46,6 +46,18 @@ class Parser:
         
         return ex_rows
 
+    '''
+    Function, which extracted information from html table.
+    Html table should have tags: thead, tbody.
+    From thead extracted features of table, and values from each feature are extracted
+    from tbody.
+        Args:
+            table - is particular table, form which we want to extract data
+            sep - separator paragraphs (uses if in <td><\td> contain several paragraphs)
+        Return:
+            map - where each key equal to column name from thead
+            and value corresponding particular key is list of values from tbody in str type
+    '''
     def ExtractTable(self, table, sep: str = ';'):
         if isinstance(table, str):
             table = BeautifulSoup(table, features = 'lxml')
@@ -62,11 +74,6 @@ class Parser:
             table[column] = rows_features[i]
 
         return table
-
-
-
-        
-
 
 
 class ParserUFCStats(Parser):
@@ -86,7 +93,13 @@ class ParserUFCStats(Parser):
                                        'Td': ('takedown', 'takedown_total')}
         
 
-    
+    '''
+    Auxiliary function for extract type of tournament.
+        Args:
+            str - string, from which type of tournament is wanted to extract
+        Return:
+            Tournament type. Where nt mean Normal Tournament and FN mean Fight Night
+    '''    
     def ExtractTournamentType(str):
         inf = re.search('UFC \d{3}', str)
         if inf:
@@ -333,6 +346,21 @@ class ParserUFCStats(Parser):
 
         return information
     
+    '''
+    Auxiliary function for converting extracted information from html table 
+    and convert in correct format for us.
+    Args:
+        information - dictionary, into which information are collected from ext_table 
+        ext_talbe - dictionary, which corresponding table
+        map_to_feature - dictionary, which convert name of feature from ext_table to another name in information dictionary
+        map_to_several - dictionary, which convert name of feature from ext_table to anothers 2 features in information
+        and split particular value from ext_table by symbol ';' (it should be fix)
+        map_to_tf - same like map_to_feature, but for column with times
+        map_to_tf_call - dictionary, which contain function by key, in order transform time in str to time in necessary format
+        each key is corresponding key in map_to_tf
+    Return:
+        None, but change information dictionary 
+    '''
     def ConvertStatsFromTable(self,
                               information: dict,
                               extr_table: dict, 
@@ -352,7 +380,7 @@ class ParserUFCStats(Parser):
             clear_features = map_to_several[key]
             information[clear_features[0]] = feature_1
             information[clear_features[1]] = feature_2
-    
+
     def GetTotalStatsPerRound(self, table, thead):
         stats_per_round = self.GetStatsPerRound(table, thead, self.GetTotalStats)
         return stats_per_round
@@ -361,6 +389,15 @@ class ParserUFCStats(Parser):
         stats_per_round = self.GetStatsPerRound(table, thead, self.GetSignificantStats)
         return stats_per_round
     
+
+    '''
+    Function, which is needed to extract information from rounds table.
+    Args:
+        table - is table, which containing tbodies with our stats, but for these tbodies aren't correctful
+        thead in table.
+        thead - thread, which contain columns name for tbodies and solve problem with their absence in main table
+        get_stats_from_tbody - function, which execute stats from tbody (GetTotalStats, GetSignificantStats)
+    '''
     def GetStatsPerRound(self, table, thead, get_stats_from_tbody):
         if isinstance(table, str):
             table = BeautifulSoup(table, features='html.parser')
