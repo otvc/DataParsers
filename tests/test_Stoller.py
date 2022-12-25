@@ -16,9 +16,7 @@ def test_BaseStollerInit():
     }
     fight_page_graph['http://www.ufcstats.com/statistics/events/completed?page='] = fight_page_graph
     
-    transition_graph = {
-        'http://www.ufcstats.com/statistics/events/completed': fight_page_graph
-    }
+    transition_graph = {'http://www.ufcstats.com/statistics/events/completed': fight_page_graph}
 
     particular_attr = ['href', 'data-link']
 

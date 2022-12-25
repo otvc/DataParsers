@@ -21,7 +21,7 @@ class BaseStoller:
     '''
     def __init__(self, transition_graph:dict,
                        particular_attr:list[str],
-                       page_processed: Callable[[str, str]],) -> None:
+                       page_processed: Callable[[str, str]] = lambda x,y: x) -> None:
         self.transition_graph = transition_graph
         self.page_processed = page_processed
         self.particular_attr = particular_attr
@@ -54,7 +54,7 @@ class BaseStoller:
             self.history.append(current_page)
             if not page_is_loaded:
                 self.driver.get(current_page)
-            self.page_processed(current_page, self.driver.page_source)
+            self.page_processed(self.driver.current_url, self.driver.page_source)
             if next_transition: # if next page is not none. If page is None that it's mean stop 
                 base_sources = list(next_transition.keys())
                 elements = self.FindClickableElements(self.driver.page_source, base_sources) # if clickable elements didn't exist
@@ -98,6 +98,10 @@ class BaseStoller:
         for attr in self.particular_attr:
             nodes.extend(parent_node.find_all(attrs = {attr: FilterSource}))
         return nodes
+    
+    def setPageProcessed(self, page_processed: Callable[[str, str]]):
+        self.page_processed = page_processed
+
 
     def __GetElement(self, node):
         previous_siblings = node.find_previous_siblings(node.name)
