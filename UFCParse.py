@@ -126,14 +126,7 @@ class ParserUFCStats(Parser):
         across all keys describe the tournament 
     '''
     def GetTournaments(self, doc:str):
-        information = {
-            'name': [],
-            'date': [],
-            'type': [],
-            'city': [],
-            'country': [],
-            'state': []
-        }
+        tournaments = []
 
         bst = BeautifulSoup(doc, features = 'lxml')
 
@@ -141,9 +134,10 @@ class ParserUFCStats(Parser):
         tbody = table_stats.find('tbody')
         tournament_rows = tbody.find_all('tr')
 
+
         for t_row in tournament_rows:
             column1 = t_row.find('i') # contain name and  date
-
+            information = dict.fromkeys(['name', 'date', 'type', 'city', 'country', 'state'])
             if column1:
                 name_container = column1.find('a')
                 date_container = column1.find('span')
@@ -165,14 +159,14 @@ class ParserUFCStats(Parser):
                     state = ''
                     city, country = location
                 
-                information['name'].append(name)
-                information['date'].append(datetime.date(int(year), month, int(day)))
-                information['country'].append(country)
-                information['state'].append(state)
-                information['city'].append(city)
-                information['type'].append(ParserUFCStats.ExtractTournamentType(name))
-
-        return information
+                information['name'] = name
+                information['date'] = f'{year}.{month}.{day}'#datetime.date(int(year), month, int(day)))
+                information['country'] = country
+                information['state'] = state
+                information['city'] = city
+                information['type'] = ParserUFCStats.ExtractTournamentType(name)
+            tournaments.append(information)
+        return tournaments
 
     '''
     This function using to extract information from page something equal http://www.ufcstats.com/event-details/012fc7cd0779c09a
@@ -194,7 +188,7 @@ class ParserUFCStats(Parser):
             3.8. sub_att;
             3.9. rev;
             3.10. ctrl;
-        4. total_stats_per_round
+        4. total_stats_per_round;
         5. division;
         6. round;
         7. seconds;
@@ -225,6 +219,8 @@ class ParserUFCStats(Parser):
         if isinstance(doc, str):
             doc = BeautifulSoup(doc, features='html.parser')
         information = dict()
+
+        information['tournament'] = doc.find(attrs={'class': 'b-content__title'}).findChild().text.strip()
         
         fighters_top_line = doc.find(attrs={'class':'b-fight-details__persons clearfix'})
         a_fighters_names = fighters_top_line.find_all(attrs={'class':'b-link b-fight-details__person-link'})
@@ -250,6 +246,7 @@ class ParserUFCStats(Parser):
         division_i = doc.find(attrs = {'class':'b-fight-details__fight-title'})
         images = division_i.find_all('img')
         fight_type = 'type'
+        bonuses = {fighter_1: [], fighter_2: []}
         if images:
             bonuses = {fighter_1: [], fighter_2: []}
             images.__iter__()
