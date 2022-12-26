@@ -1,6 +1,7 @@
 __pycache__
 geckodriver.log
-tests/Pages/*
+tests/Pages
+tests/Databases
 chromedriver.exe
 parser_error.log
 parser_warning.log

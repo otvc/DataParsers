@@ -11,7 +11,7 @@ logging.basicConfig(filename = 'parser_warning.log', level=logging.WARNING, **lo
 from collections import defaultdict
 import datetime
 
-from pymongo import MongoClient
+from DBWrapper import KVDBWrapper
 from pymongo.database import Database
 
 from Stroller import BaseStoller
@@ -22,7 +22,7 @@ class ParserEngine:
 
     def __init__(self, stoller:BaseStoller, 
                        parser:Parser, 
-                       database:Database,
+                       database:KVDBWrapper,
                        collections:dict[str],
                        сur_pos_handler:Callable[[str, int]] = None,
                        is_saved = False,
@@ -37,13 +37,13 @@ class ParserEngine:
         if is_saved:
             self.LoadViewed()
         else:
-            self.viewed_pages = []
+            self.viewed_pages = {}
     
     def HistoryCallback(self, url, document):
         if self.cus_pos_handler:
             self.cus_pos_handler(url, len(self.viewed_pages))
         self.DocumentHandler(url, document)
-        self.viewed_pages.append(url)
+        self.viewed_pages[url] = True
 
     def DocumentHandler(self, url, document):
         pass
@@ -52,7 +52,7 @@ class ParserEngine:
         try:
             self.stoller.StartWandering()
         except Exception as e:
-            logging.ERROR(str(e))
+            logging.error(str(e))
     
     def SaveURI(self, uri):
         with open('viewed_pages.txt', 'a') as f:
@@ -60,22 +60,23 @@ class ParserEngine:
     
     def LoadViewed(self):
         with open('viewed_pages.txt', 'r') as f:
-            self.viewed_pages = f.readlines()
+            pages = f.readlines()
+        self.viewed_pages = dict.fromkeys(pages)
 
 
 class UFCEngine(ParserEngine):
 
     def __init__(self, stoller: BaseStoller, 
                        parser:Parser, 
-                       database: Database,
+                       database: KVDBWrapper,
                        collections:dict[str],
                        cur_pos_handler: Callable[[str, int]] = None,
                        is_saved = False,
                        path_to_save = 'viewed_pages.txt') -> None:
         super().__init__(stoller, parser, database, collections, cur_pos_handler, is_saved, path_to_save)
         assert isinstance(parser, ParserUFCStats)
-        self.tour_collection = database[collections['tournaments']]
-        self.fight_collection = database[collections['fights']]
+        self.tour_collection = collections['tournaments']
+        self.fight_collection = collections['fights']
     
     def DocumentHandler(self, url:str, document):
         if url in self.viewed_pages:
@@ -87,13 +88,13 @@ class UFCEngine(ParserEngine):
     
     def TournamentHandler(self, document:str):
         tournaments = self.parser.GetTournaments(document)
-        self.tour_collection.insert_many(tournaments)
+        self.database.insert_many(self.tour_collection, tournaments)
 
     def FightHandler(self, document:str):
         try:
             fight_stats = self.parser.GetFightStats(document)
-            self.fight_collection.insert_one(fight_stats)
-        #Parser can have problems if tournament is empty
+            self.database.insert_one(self.fight_collection, fight_stats)
+        #Parser may have problems if tournament is empty
         except AttributeError as ae:
             logging.warning(str(ae))
 
