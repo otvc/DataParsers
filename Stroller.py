@@ -18,6 +18,9 @@ class BaseStoller:
         transition_graph don't need to contain particulary url. keys should contain base part of source.
         Transition on next page happens if part uri contain this base part of source.
         particular_attr:list[str] - contain attributes in which will searching sources from transition_graph
+        page_processed: Callable[[str, str]] - callable function, where arguments are equal:
+            1.URI
+            2.HTML document 
     '''
     def __init__(self, transition_graph:dict,
                        particular_attr:list[str],
@@ -30,6 +33,9 @@ class BaseStoller:
 
         self.history = [] #contain pages which is viewed
 
+    '''
+    Function which create option for setting up webdriver
+    '''
     def set_options(self):
         self.options = Options()
         self.options.headless = True
@@ -44,11 +50,32 @@ class BaseStoller:
     def set_driver(self):
         self.driver = webdriver.Chrome()
 
+    '''
+    Function which start wandering
+        Args:
+            transition graphs - same as in __init__
+        Return:
+            None
+    '''
     def StartWandering(self, transition_graph = None):
         if not transition_graph:
             transition_graph = self.transition_graph
         self.Step(transition_graph)
     
+    '''
+    Function which contain next parts, which is needed for wandering:
+    1. Goes on vertexes 1-st depth from transition_graph
+    2. Finding on particular page sources which correspond to values for 1-st depth vertex
+    in graph
+    3. And goes to the next depth if contain needed sources
+    Something like deep crawl
+        Args:
+            transition_graph - same function as in __init__
+            page_is_loaded - it's needed if you return on page where you were
+            and don't do request
+        Return:
+            None
+    '''
     def Step(self, transition_graph, page_is_loaded = False):
         for current_page, next_transition in transition_graph.items():
             self.history.append(current_page)
@@ -66,12 +93,30 @@ class BaseStoller:
                     )
                     self.StepClick(pl_elements, next_transition)
 
+    '''
+    Function which execute click for elements with source in order switch webdriver on this uri
+    and get html page. In the next step transition.
+        Args:
+            element - clickable element for next step in site graph
+            transition_graph - same function as writed in __init__
+        Return:
+            None
+    '''
     def StepClick(self, element, transition_graph):
         element.click()
         self.Step(transition_graph, page_is_loaded=True)
         self.driver.back()
-
-    def FindClickableElements(self, doc:str, base_sources:list[str])->list[WebElement]:
+    
+    '''
+    Function for finding elements with sources, on which we can click
+    to do next step.
+        Args:
+            doc:str - particular html document for finding clickable elements
+            base_sources:list[str] - sources for finding elements which starts from something uri in the sources
+        Return:
+            elements:list[str] - list of xpaths for each suitable element
+    '''
+    def FindClickableElements(self, doc:str, base_sources:list[str])->list[str]:
         doc = BeautifulSoup(doc, features='html.parser')
         elements = []
         for partial_link in base_sources:
@@ -81,6 +126,14 @@ class BaseStoller:
                 elements.append(node_xpath)
         return elements
 
+    '''
+    Function for finding clickable elements with particular sources.
+        Args:
+            parent_node:BeautifulSoup - object in which we will finding clickable objects
+            source:str - same as base_sources in FindClickableElements but it's particular source
+        Return:
+            nodes:list - list with elements in BeautifulSoup type 
+    '''
     def FindElementWithSource(self, parent_node, source):
         nodes = []
         def FilterSource(item):
@@ -99,10 +152,22 @@ class BaseStoller:
             nodes.extend(parent_node.find_all(attrs = {attr: FilterSource}))
         return nodes
     
+    '''
+    Change self.page_processed function
+        Args:
+            page_processed: same as in __init__
+    '''
     def setPageProcessed(self, page_processed: Callable[[str, str]]):
         self.page_processed = page_processed
 
-
+    '''
+    Function for extraction part of xpath from particular BeautifulSoup object
+        Args:
+            node: - 
+        Return:
+            if node doesn't have parent - node.name
+            else string with parent with index of node in xpath style 
+    '''
     def __GetElement(self, node):
         previous_siblings = node.find_previous_siblings(node.name)
         length = len(list(previous_siblings)) + 1
@@ -111,6 +176,13 @@ class BaseStoller:
         else:
             return node.name
 
+    '''
+    Function for extracton xpath to node.
+        Args:
+            node: particular node, xpath of which we want find
+        Return:
+            string xpath which is corresponded to node 
+    '''
     def GetXpath(self, node):
         path = [self.__GetElement(node)]
         for parent in node.parents:
