@@ -6,3 +6,9 @@ chromedriver.exe
 parser_error.log
 parser_warning.log
 test.py
+
+analysis/*.csv
+analysis/AnalysisUFC/*.csv
+analysis/AnalysisUFC/*.csv
+analysis/AnalysisUFC/df*
+analysis/AnalysisUFC/.ipynb_checkpoints/
