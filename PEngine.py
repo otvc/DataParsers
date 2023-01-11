@@ -95,6 +95,6 @@ class UFCEngine(ParserEngine):
             fight_stats = self.parser.GetFightStats(document)
             self.database.insert_one(self.fight_collection, fight_stats)
         #Parser may have problems if tournament is empty
-        except AttributeError as ae:
+        except Exception as ae:
             logging.warning(str(ae))
 

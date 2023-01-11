@@ -267,8 +267,24 @@ class ParserUFCStats(Parser):
         information['bonuses'] = bonuses
         
         division = list(division_i.children)[-1].strip()
-        division = division.split(' ')[1]
-        information['division'] = division 
+        
+        if fight_type not in information:
+            information[fight_type]='normal'
+
+        if information[fight_type]=='belt':
+            division = division.split(' ')
+            if 'Ultimate' in division:
+                division = division[3:]
+                division.remove('Tournament')
+            if 'Interim' in division:
+                division = division[2:]
+            division.remove('Title')
+            division.remove('Bout')
+        else:
+            division = division.split(' ')
+            division.remove('Bout')
+
+        information['division'] = ' '.join(division) 
 
         short_stats_line = doc.find(attrs={'class':'b-fight-details__content'})
         
@@ -434,6 +450,12 @@ class ParserUFCStats(Parser):
 
     def __convert_ctrl(self, ctrl_str: str):
             controls_str = ctrl_str.split(';')
-            controls_f1 = list(map(int, controls_str[0].split(':')))
-            controls_f2 = list(map(int, controls_str[1].split(':')))
+            try:
+                controls_f1 = list(map(int, controls_str[0].split(':')))
+            except:
+                controls_f1 = [0,0]
+            try:
+                controls_f2 = list(map(int, controls_str[1].split(':')))
+            except:
+                controls_f2 = [0,0]
             return  [controls_f1[0]*60+ controls_f1[1], controls_f2[0]*60 + controls_f2[1]]

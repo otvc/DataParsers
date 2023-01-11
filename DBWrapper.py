@@ -44,7 +44,7 @@ class KVDBCsv(KVDBWrapper):
             path = Path(self.__create_source(coll_name))
             header = not path.is_file()
             coll_df = pandas.DataFrame(data)
-            with open(path, 'a') as fp:
+            with open(path, 'a', encoding="utf-8") as fp:
                 coll_df.to_csv(fp, header = header)
     
     def __create_source(self, collection):

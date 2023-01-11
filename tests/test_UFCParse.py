@@ -173,9 +173,9 @@ def test_ExtractTable():
     assert all(a == b for a,b in zip(extracted_tb, gt_row))
 
 
-    
 
-    
+
+
 
 if __name__ == '__main__':
     test_ExtractTournamentType()
