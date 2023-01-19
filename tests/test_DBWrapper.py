@@ -1,5 +1,5 @@
 import sys
-sys.path.append('../StatsUFC')
+sys.path.append('../StatsUFC/model')
 
 from pathlib import Path
 

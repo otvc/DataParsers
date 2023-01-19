@@ -1,5 +1,5 @@
 import sys
-sys.path.append('../StatsUFC')
+sys.path.append('../StatsUFC/model')
 
 from BaseParse import ParserYuristOnline
 from test_ConsParse import gt_and_doc

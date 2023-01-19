@@ -2,11 +2,12 @@ import argparse
 import os
 
 from pymongo import MongoClient
-import DBWrapper
 
-from Stroller import BaseStoller
-from UFCParse import ParserUFCStats
-from PEngine import UFCEngine
+import model.DBWrapper
+
+from model.Stroller import BaseStoller
+from model.BaseParse import ParserUFCStats
+from model.PEngine import UFCEngine
 
 def output(uri, count):
     os.system('cls')

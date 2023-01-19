@@ -2,7 +2,7 @@ import sys
 import os
 import calendar
 
-sys.path.append('../StatsUFC')
+sys.path.append('../StatsUFC/model')
 
 from BaseParse import ParserUFCStats
 from BaseParse import Parser
