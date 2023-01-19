@@ -4,8 +4,8 @@ import calendar
 
 sys.path.append('../StatsUFC')
 
-from UFCParse import ParserUFCStats
-from UFCParse import Parser
+from BaseParse import ParserUFCStats
+from BaseParse import Parser
 
 from selenium import webdriver
 from selenium.webdriver.common.keys import Keys
@@ -16,7 +16,7 @@ from bs4 import BeautifulSoup
 
 
 def test_GetTournaments():
-    with open('tests/Pages/Stats _ UFC.html', 'r') as f:
+    with open('tests/Pages/UFCStats/Stats _ UFC.html', 'r') as f:
         html = f.read()
     
     pufc = ParserUFCStats()
@@ -62,7 +62,7 @@ def test_ExtractTournamentType():
     assert nt_extracted == 'NT'
 
 def test_GetTotalStats():
-    with open('tests/Pages/TotalStats.html', 'r') as f:
+    with open('tests/Pages/UFCStats/TotalStats.html', 'r') as f:
         table = f.read()
 
     gt_keys = ['knockdown', 'sig_strikes', 'sig_strikes_total', 
@@ -93,7 +93,7 @@ def test_GetTotalStats():
     assert all(a == b for a, b in zip(gt_values, information))
 
 def test_GetSignificantStats():
-    with open('tests/Pages/SignificantStrike.html', 'r') as f:
+    with open('tests/Pages/UFCStats/SignificantStrike.html', 'r') as f:
         table = f.read()
 
     gt_keys = ['head', 'head_total', 'body', 'body_total', 
@@ -120,16 +120,16 @@ def test_GetSignificantStats():
     assert all(a == b for a, b in zip(gt_values, information))
 
 def test_GetTotalStatsPerRound():
-    with open('tests/Pages/TotalStatsPerRound.html', 'r') as f:
+    with open('tests/Pages/UFCStats/TotalStatsPerRound.html', 'r') as f:
         table = f.read()
-    with open('tests/Pages/TotalStatsThead.html', 'r') as f:
+    with open('tests/Pages/UFCStats/TotalStatsThead.html', 'r') as f:
         thead = f.read()
     pfc = ParserUFCStats()
     informations = pfc.GetTotalStatsPerRound(table, thead)
     ex_keys = list(informations[0].keys())
 
 def test_GetFightStats():
-    with open('tests/Pages/FightPage.html', 'r') as f:
+    with open('tests/Pages/UFCStats/FightPage.html', 'r') as f:
         doc = f.read()
     
     pfc = ParserUFCStats()
@@ -138,7 +138,7 @@ def test_GetFightStats():
     
 
 def test_ExtractTBody():
-    with open('tests/Pages/TBody.html') as f:
+    with open('tests/Pages/UFCStats/TBody.html') as f:
         tbody = f.read()
 
     gt_tb = [['Israel Adesanya;Alex Pereira', '0;0', '86 of 162;91 of 157', '53%;57%', 
@@ -153,7 +153,7 @@ def test_ExtractTBody():
     assert all(a == b for a,b in zip(extracted_row, gt_row))
 
 def test_ExtractTable():
-    with open('tests/Pages/TotalStats.html') as f:
+    with open('tests/Pages/UFCStats/TotalStats.html') as f:
         tbody = f.read()
     
     gt_th = [['Fighter', 'KD', 'Sig. str.', 'Sig. str. %', 'Total str.', 'Td',

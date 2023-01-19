@@ -4,6 +4,7 @@ import calendar
 import datetime 
 import copy
 
+
 class Parser:
     
     def __init__(self) -> None:
@@ -74,7 +75,40 @@ class Parser:
             table[column] = rows_features[i]
 
         return table
+    
+    def ExtractHeadersContent(self, doc, htype:int = 1):
+        if isinstance(doc, str):
+            doc = BeautifulSoup(doc, features = 'html.parser')
+        tag = 'h' +  str(htype)
+        headers = doc.find_all(tag)
+        headers_content = [h.text.strip() for h in headers]
+        return headers_content
+    
+    def ExtractNestedLists(self, doc, tag_list = 'ul', tag_leaf = 'li'):
+        if isinstance(doc, str):
+            doc = BeautifulSoup(doc, features = 'html.parser')
+            doc = doc.contents[0]
 
+        chapter = None
+        nested_list = dict()
+        for child in doc.contents:
+            if child.name == tag_list:
+                if child.find(tag_list):
+                    nested_list[chapter] = self.ExtractNestedLists(child)
+                else:
+                    all_tags = child.find_all(tag_leaf)
+                    #We can change below line for extract all inner text and only text, withou tags
+                    #but for quickly realization in this place is contained simple realization
+                    all_items = [item.text.strip() for item in all_tags]
+                    nested_list[chapter] = all_items
+            elif child.name == 'li':
+                chapter = child.text
+        
+        return nested_list
+    
+        
+
+        
 
 class ParserUFCStats(Parser):
 
@@ -459,3 +493,133 @@ class ParserUFCStats(Parser):
             except:
                 controls_f2 = [0,0]
             return  [controls_f1[0]*60+ controls_f1[1], controls_f2[0]*60 + controls_f2[1]]
+
+
+
+class ParserConsult(Parser):
+
+    def __init__(self) -> None:
+        super().__init__()
+
+    '''
+    Doc should contain list of paragraphs <p> in which containing <a>
+
+    Return:
+        list of texts
+    '''
+    def GetListFromBlockquote(self, doc):
+        if isinstance(doc, str):
+            doc = BeautifulSoup(doc, features='html.parser')
+
+        list_links = doc.find_all('a')
+        list_text = [a.text.strip() for a in list_links]
+        return list_text
+    
+    def GetListHeadersCodes(self, doc):
+        return self.ExtractHeadersContent(doc, htype = 3)
+
+    def GetArticleParagraphs(self, doc):
+        if isinstance(doc, str):
+            doc = BeautifulSoup(doc, features='html.parser').contents[0]
+        
+        childs = doc.contents
+        paragraphs = []
+        for child in childs:
+            if child.name == 'p' and child.contents:
+                paragraphs.append(child.text.strip())
+
+        return paragraphs
+
+class ParserYuristOnline(Parser):
+
+    def __init__(self) -> None:
+        super().__init__()
+    
+    '''
+    Extracting information from short block with question. It information contain:
+        1. Name - str;
+        2. City - str;
+        3. Answers - int;
+        4. Categories - list;
+        5. Title - str;
+        6. Datetime - str;
+    Args:
+        doc - str or BeautifulSoup object which equal information block
+    Return:
+        Map with keys which are descripted above
+    '''
+    def GetShortQuestionBlock(self, doc):
+        if isinstance(doc, str):
+            doc = BeautifulSoup(doc, features='html.parser')
+        
+        output = dict()
+        
+        div_name = doc.find(attrs = {'class':'question-author'})
+        output['Name'] = div_name.text.strip()
+
+        div_datetime = doc.find(attrs = {'class': 'question-time'})
+        date = div_datetime.contents[0].text.strip()
+        time = div_datetime.contents[-1].text.strip()
+        output['Datetime'] = date + " " + time
+
+        div_title = doc.find(attrs = {'class': 'question-title'})
+        output['Title'] = div_title.text.strip()
+
+        div_cat_city = doc.find(attrs = {'class': 'question-category-city'})
+        output['City'] = div_cat_city.contents[-1].text.strip()
+        
+        categories = []
+        cat_tags = div_cat_city.find_all('a')
+        for cat_tag in cat_tags:
+            categories.append(cat_tag.text.strip())
+        output['Categories'] = categories
+
+        div_answers = doc.find(attrs = {'class': 'jurist-response-2'})
+        text_answers = div_answers.text.strip()
+        output['Answers'] = int(re.search('\d{1,}', text_answers)[0])
+
+        return output
+
+    '''
+    Extract infromation from answer on particular question.
+
+    '''
+    def GetAnswerInformation(self, doc):
+        if isinstance(doc, str):
+            doc = BeautifulSoup(doc, features='html.parser')
+        output = dict()
+
+        spans_star = doc.find_all(attrs = {'class': 'rating-star star-green'})
+        output['Rating'] = len(spans_star) if spans_star else 0
+
+        span_name = doc.find(attrs = {'itemprop': 'name'})
+        output['Name'] = span_name.text.strip()
+
+        div_text = doc.find(attrs = {'class':'answer-text'})
+        text = div_text.get_text(separator=' ').strip()
+        output['Text'] = text.replace("\n", "")
+
+        time_text = doc.find('time').text.strip()
+        time_text = time_text.split(' ')
+        output['Datetime'] = time_text[0] + ' ' + time_text[-1]
+
+        return output
+
+    def GetAllShortQuestions(self, doc):
+        if isinstance(doc, str):
+            doc = BeautifulSoup(doc, features='html.parser')
+        
+        main_block = doc.find(attrs = {'class': 'main-block'})
+        div_wb = main_block.find(attrs = {'class': 'wb'})
+        divs_question = div_wb.find_all(attrs = {'class': 'white-block'})
+
+        output = []
+        for div_q in divs_question:
+            output.append(self.GetShortQuestionBlock(div_q))
+        
+        return output
+
+        
+
+        
+        

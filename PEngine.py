@@ -15,8 +15,8 @@ from DBWrapper import KVDBWrapper
 from pymongo.database import Database
 
 from Stroller import BaseStoller
-from UFCParse import Parser
-from UFCParse import ParserUFCStats
+from BaseParse import Parser
+from BaseParse import ParserUFCStats
 
 class ParserEngine:
 
