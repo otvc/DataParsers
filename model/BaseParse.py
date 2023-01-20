@@ -619,7 +619,14 @@ class ParserYuristOnline(Parser):
         
         return output
 
+    def GetAllAnswers(self, doc):
+        if isinstance(doc, str):
+            doc = BeautifulSoup(doc, features='html.parser')
         
+        divs_answers = doc.find_all(attrs = {'class': 'answer-block'})
 
-        
+        answers = []
+        for div_answer in divs_answers:
+            answers.append(self.GetAnswerInformation(div_answer))
+        return answers 
         

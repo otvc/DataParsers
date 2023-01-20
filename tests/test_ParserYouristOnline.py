@@ -57,8 +57,6 @@ def test_GetAnswerInformation():
     assert all(ComparingDicts(gt_info, extracted_info))
 
 def test_GetAllShortQuestions():
-    pl = ParserYuristOnline()
-
     gt_info, doc = gt_and_doc('tests/Pages/yourist-online/GroundTruth/GetAllShortQuestions.json',
                               'tests/Pages/yourist-online/Docs/GetAllShortQuestions.html', e2=None)
     gt_info = ' '.join(gt_info)
@@ -69,7 +67,21 @@ def test_GetAllShortQuestions():
 
     assert all(ComparingLists(gt_info, extracted_info))
 
+def test_GetAllAnswers():
+    pl = ParserYuristOnline()
+
+    gt_info, doc = gt_and_doc('tests/Pages/yourist-online/GroundTruth/GetAllAnswers.json',
+                              'tests/Pages/yourist-online/Docs/GetAllAnswers.html', e2=None)
+    gt_info = ' '.join(gt_info)
+    gt_info = json.loads(gt_info)
+
+    extracted_info = pl.GetAllAnswers(doc)
+
+    assert all(ComparingLists(gt_info, extracted_info))
+
+
 if __name__ == '__main__':
     test_GetShortQuestionBlock()
     test_GetAnswerInformation()
     test_GetAllShortQuestions()
+    test_GetAllAnswers()
