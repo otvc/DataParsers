@@ -515,9 +515,53 @@ class ParserConsult(Parser):
         list_text = [a.text.strip() for a in list_links]
         return list_text
     
+    '''
+    Function for extract list of type popular codes on page:
+    https://www.consultant.ru/popular/
+
+    Args:
+        doc:BeautifulSoup - document with content from above url
+    Return:
+        list[str] with codes types
+    '''
     def GetListHeadersCodes(self, doc):
         return self.ExtractHeadersContent(doc, htype = 3)
+    
+    '''
+    Function for extract types and corresponding popular codes from page:
+    https://www.consultant.ru/popular/
 
+    Args:
+        doc:BeautifulSoup or str - document with content from above url
+    Return:
+        dict[list] with keys:
+            1. Codes type
+        Each codes type contain list of corresponding codes
+    '''
+    def GetAllPopularCodes(self, doc) -> dict[list]:
+        if isinstance(doc, str):
+            doc = BeautifulSoup(doc, features='html.parser')
+        headers = self.GetListHeadersCodes(doc)
+        div_content = doc.find(attrs = {'id': 'content'})
+        blocks_codes = div_content.find_all('blockquote')
+
+        codes = dict()
+        for block_codes, header in zip(blocks_codes, headers):
+            codes[header] = self.GetListFromBlockquote(block_codes)
+        
+        return codes
+
+    '''
+    Finding article paragraphs in on special dict on page with articles.
+    For example from page:
+    https://www.consultant.ru/document/cons_doc_LAW_37800/d4ab16b974a8e08c3e3297ffcd28d0ac4ff111bb/
+
+    Args:
+        doc:BeautifulSoup or str - div with paragraphs 
+        (for my use especially contained "class document-page__content document-page_left-padding")
+    Return:
+        list[str] with paragraphs for article
+    '''
     def GetArticleParagraphs(self, doc):
         if isinstance(doc, str):
             doc = BeautifulSoup(doc, features='html.parser').contents[0]
@@ -529,6 +573,52 @@ class ParserConsult(Parser):
                 paragraphs.append(child.text.strip())
 
         return paragraphs
+    
+    '''
+    Function for extract name of article from article page.
+    For example: 
+    https://www.consultant.ru/document/cons_doc_LAW_37800/d4ab16b974a8e08c3e3297ffcd28d0ac4ff111bb/
+
+    Args:
+        doc:BeautifulSoup or str - document with content from above url
+    Return:
+        Part of name with started withou name of codes. (Start from "Статья")
+    '''
+    def GetArticleName(self, doc):
+        if isinstance(doc, str):
+            doc = BeautifulSoup(doc, features = 'html.parser')
+        div_head = doc.find(attrs = {'class': 'document__style doc-style'})
+        par_name = div_head.find('p')
+        article_name = par_name.contents[-1].text.strip()
+        part_of_name = re.search('Статья \d.*', article_name).group()
+        return part_of_name
+    
+    '''
+    Function for extract paragraphs of article and the name.
+    For example from page:
+    https://www.consultant.ru/document/cons_doc_LAW_37800/d4ab16b974a8e08c3e3297ffcd28d0ac4ff111bb/
+
+    Args:
+        doc:BeautifulSoup or str - document with content from above url
+    Return:
+        dict with keys:
+            1. Name - str with name
+            2. Paragraphs - list of strings with parts 
+    '''
+    def GetArticleAndName(self, doc):
+        if isinstance(doc, str):
+            doc = BeautifulSoup(doc, features = 'html.parser')
+        
+        output_info = dict()
+
+        div_with_p = doc.find(attrs = {'class': 'document-page__content document-page_left-padding'})
+        paragraphs = self.GetArticleParagraphs(div_with_p)
+        article_name = self.GetArticleName(doc)
+        
+        output_info['Name'] = article_name
+        output_info['Paragraphs'] = paragraphs
+        return output_info
+
 
 class ParserYuristOnline(Parser):
 
@@ -581,8 +671,18 @@ class ParserYuristOnline(Parser):
         return output
 
     '''
-    Extract infromation from answer on particular question.
+    Extract information from particular answer on particular question.
+    For example from page:
+    https://www.yurist-online.net/question/176758
 
+    Args:
+        doc:BeautifulSoup or str - particular answer.
+    Return:
+        dict with keys:
+            1. Rating;
+            2. Name;
+            3. Text;
+            4. Datetime.
     '''
     def GetAnswerInformation(self, doc):
         if isinstance(doc, str):
@@ -605,6 +705,15 @@ class ParserYuristOnline(Parser):
 
         return output
 
+    '''
+    Extract all information from list with question.
+    For example, from page:
+        https://www.yurist-online.net/
+    Args:
+        doc:BeautifulSoup or str - document with content from above url
+    Return:
+        list[dict] with all short question (See function GetShortQuestionBlock)
+    '''
     def GetAllShortQuestions(self, doc):
         if isinstance(doc, str):
             doc = BeautifulSoup(doc, features='html.parser')
@@ -619,6 +728,16 @@ class ParserYuristOnline(Parser):
         
         return output
 
+    '''
+    Extract all information from list with question.
+    For example, from page:
+    https://www.yurist-online.net/question/176758
+    
+    Args:
+        doc:BeautifulSoup or str - document with content from above url
+    Return:
+        list[dict] with all answers on question (See function GetAnswerInformation)
+    '''
     def GetAllAnswers(self, doc):
         if isinstance(doc, str):
             doc = BeautifulSoup(doc, features='html.parser')

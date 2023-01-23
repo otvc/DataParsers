@@ -2,36 +2,11 @@ import sys
 sys.path.append('../StatsUFC/model')
 
 from BaseParse import ParserYuristOnline
-from test_ConsParse import gt_and_doc
+from TestHelper import gt_and_doc, ComparingDicts, ComparingLists
+
 import json
 
 from bs4 import BeautifulSoup
-
-def ComparingDicts(d1, d2, result = []):
-    for key, value in d1.items():
-        if isinstance(value, dict):
-            ComparingDicts(value, d2[key], result)
-        elif isinstance(value, list):
-            list_equals = [i1 == i2  for i1, i2 in zip(value, d2[key])]
-            result.extend(list_equals)
-        elif isinstance(value, str):
-            v1 = value.replace(" ", "")
-            v2 = d2[key].replace(" ", "")
-            result.append(v1 == v2)
-        else:
-            result.append(value == d2[key])
-    return result
-
-def ComparingLists(l1, l2, result = []):
-    for i1, i2 in zip(l1, l2):
-        if isinstance(i1, dict):
-            ComparingDicts(i1, i2, result=result)
-        elif isinstance(i1, list):
-            ComparingLists(i1, i2, result=result)
-        else:
-            result.append(i1==i2)
-    return result
-
         
 
 def test_GetShortQuestionBlock():
