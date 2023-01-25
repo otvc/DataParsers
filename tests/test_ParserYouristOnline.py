@@ -10,8 +10,8 @@ from bs4 import BeautifulSoup
         
 
 def test_GetShortQuestionBlock():
-    gt_info, doc = gt_and_doc('tests/Pages/yourist-online/GroundTruth/ShortQuestionBlock.json',
-                              'tests/Pages/yourist-online/Docs/ShortQuestionBlock.html')
+    gt_info, doc = gt_and_doc('tests/Pages/yurist-online/GroundTruth/ShortQuestionBlock.json',
+                              'tests/Pages/yurist-online/Docs/ShortQuestionBlock.html')
     gt_info = ' '.join(gt_info)
     gt_info = json.loads(gt_info)
 
@@ -21,8 +21,8 @@ def test_GetShortQuestionBlock():
     assert all(ComparingDicts(gt_info, extracted_info))
 
 def test_GetAnswerInformation():
-    gt_info, doc = gt_and_doc('tests/Pages/yourist-online/GroundTruth/GetAnswerInformation.json',
-                              'tests/Pages/yourist-online/Docs/GetAnswerInformation.html')
+    gt_info, doc = gt_and_doc('tests/Pages/yurist-online/GroundTruth/GetAnswerInformation.json',
+                              'tests/Pages/yurist-online/Docs/GetAnswerInformation.html')
     gt_info = ' '.join(gt_info)
     gt_info = json.loads(gt_info)
 
@@ -32,8 +32,8 @@ def test_GetAnswerInformation():
     assert all(ComparingDicts(gt_info, extracted_info))
 
 def test_GetAllShortQuestions():
-    gt_info, doc = gt_and_doc('tests/Pages/yourist-online/GroundTruth/GetAllShortQuestions.json',
-                              'tests/Pages/yourist-online/Docs/GetAllShortQuestions.html', e2=None)
+    gt_info, doc = gt_and_doc('tests/Pages/yurist-online/GroundTruth/GetAllShortQuestions.json',
+                              'tests/Pages/yurist-online/Docs/GetAllShortQuestions.html', e2=None)
     gt_info = ' '.join(gt_info)
     gt_info = json.loads(gt_info)
 
@@ -45,12 +45,25 @@ def test_GetAllShortQuestions():
 def test_GetAllAnswers():
     pl = ParserYuristOnline()
 
-    gt_info, doc = gt_and_doc('tests/Pages/yourist-online/GroundTruth/GetAllAnswers.json',
-                              'tests/Pages/yourist-online/Docs/GetAllAnswers.html', e2=None)
+    gt_info, doc = gt_and_doc('tests/Pages/yurist-online/GroundTruth/GetAllAnswers.json',
+                              'tests/Pages/yurist-online/Docs/GetAllAnswers.html', e2=None)
     gt_info = ' '.join(gt_info)
     gt_info = json.loads(gt_info)
 
     extracted_info = pl.GetAllAnswers(doc)
+
+    assert all(ComparingLists(gt_info, extracted_info))
+
+def test_GetQuestionText():
+    pl = ParserYuristOnline()
+
+    gt_info, doc = gt_and_doc('tests/Pages/yurist-online/GroundTruth/GetQuestionText.json',
+                              'tests/Pages/yurist-online/Docs/GetQuestionText.html', e2=None)
+    
+    gt_info = ' '.join(gt_info)
+    gt_info = json.loads(gt_info)
+
+    extracted_info = [pl.GetQuestionText(doc)]
 
     assert all(ComparingLists(gt_info, extracted_info))
 
@@ -60,3 +73,4 @@ if __name__ == '__main__':
     test_GetAnswerInformation()
     test_GetAllShortQuestions()
     test_GetAllAnswers()
+    test_GetQuestionText()
