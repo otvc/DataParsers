@@ -1,3 +1,5 @@
+import re
+
 from selenium import webdriver
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.chrome.options import Options
@@ -8,6 +10,30 @@ from selenium.webdriver.support import expected_conditions
 
 from collections.abc import Callable
 from bs4 import BeautifulSoup
+
+class BaseFilter:
+    '''
+    This class needed to filtrate clickabble elements.
+    In first step he filter element's by text which should satisfaction regular expression
+    '''
+    def __init__(self, regex_texts:list[str] = None) -> None:
+        self.regex_texts = regex_texts
+    
+    def Filtration(self, elements):
+        if self.regex_texts:
+            elements = self.FiltrationTextsByRegex(elements)
+        return elements
+    
+    def FiltrationTextsByRegex(self, elements:list[BeautifulSoup]) -> list[BeautifulSoup]:
+        filtered = elements
+        if self.regex_texts:
+            for regex_text in self.regex_texts:
+                filtered = self.FilterByInnerText(filtered, regex_text)
+        return filtered
+    
+    def FilterByInnerText(self, elements:list[BeautifulSoup], regex) -> list[BeautifulSoup]:
+        output = list(filter(lambda x: re.match(regex, x.text.strip()), elements))
+        return output
 
 class BaseStoller:
     '''
@@ -21,13 +47,19 @@ class BaseStoller:
         page_processed: Callable[[str, str]] - callable function, where arguments are equal:
             1.URI
             2.HTML document 
+        inner_text_filter: Union[re,str] -  expression for filtration clickable elements by inner text
+            if inner text contain pattern, that element is fits
+        filters:dict[BaseFilter] - contain filters by base url (url is needed contain in "transition_graph")
+                                   and drop clickable object, which have found and which not satifaction to filter
     '''
     def __init__(self, transition_graph:dict,
                        particular_attr:list[str],
-                       page_processed: Callable[[str, str]] = lambda x,y: x) -> None:
+                       page_processed: Callable[[str, str]] = lambda x,y: x,
+                       filters:dict[BaseFilter]= None) -> None:
         self.transition_graph = transition_graph
         self.page_processed = page_processed
         self.particular_attr = particular_attr
+        self.filters = filters
         self.set_options()
         self.set_driver()
 
@@ -84,10 +116,12 @@ class BaseStoller:
             self.page_processed(self.driver.current_url, self.driver.page_source)
             if next_transition: # if next page is not none. If page is None that it's mean stop 
                 base_sources = list(next_transition.keys())
-                elements = self.FindClickableElements(self.driver.page_source, base_sources) # if clickable elements didn't exist
+                elems_nodes = self.FindClickableElements(self.driver.page_source, base_sources) # if clickable elements didn't exist
+                elems_nodes = self.Filtration(elems_nodes, base_sources[0]) #filtering elements
+                elems_xpaths = self.ConvertNodesToXpaths(elems_nodes)
                 #then recursion end.
                 #If we seen source (contained in history)
-                for node_xpath in elements:
+                for node_xpath in elems_xpaths:
                     pl_elements = WebDriverWait(self.driver, 5, self.driver.find_element_by_xpath(node_xpath)).until(
                                 expected_conditions.presence_of_element_located((By.XPATH, node_xpath))
                     )
@@ -107,6 +141,10 @@ class BaseStoller:
         self.Step(transition_graph, page_is_loaded=True)
         self.driver.back()
     
+    def ConvertNodesToXpaths(self, elements:list[BeautifulSoup]):
+        return [self.GetXpath(node) for node in elements] 
+
+
     '''
     Function for finding elements with sources, on which we can click
     to do next step.
@@ -118,13 +156,11 @@ class BaseStoller:
     '''
     def FindClickableElements(self, doc:str, base_sources:list[str])->list[str]:
         doc = BeautifulSoup(doc, features='html.parser')
-        elements = []
+        elements_nodes = []
         for partial_link in base_sources:
             nodes = self.FindElementWithSource(doc, partial_link)
-            for node in nodes:
-                node_xpath = self.GetXpath(node)
-                elements.append(node_xpath)
-        return elements
+            elements_nodes.extend(nodes)
+        return elements_nodes
 
     '''
     Function for finding clickable elements with particular sources.
@@ -151,6 +187,11 @@ class BaseStoller:
         for attr in self.particular_attr:
             nodes.extend(parent_node.find_all(attrs = {attr: FilterSource}))
         return nodes
+    
+    def Filtration(self, elements, source):
+        if self.filters and source in self.filters:
+            elements = self.filters[source].Filtration(elements)
+        return elements
     
     '''
     Change self.page_processed function
