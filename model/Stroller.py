@@ -12,6 +12,7 @@ from selenium.common.exceptions import ElementClickInterceptedException
 from collections.abc import Callable
 from bs4 import BeautifulSoup
 
+
 import logging
 from run_parser import log_settings
 logging.basicConfig(filename = 'parser_warning.log', level=logging.WARNING, **log_settings)
@@ -21,6 +22,7 @@ class BaseFilter:
     This class needed to filtrate clickabble elements.
     In first step he filter element's by text which should satisfaction regular expression
     '''
+
     def __init__(self, regex_texts:list[str] = None, href_regex:list[str]=None) -> None:
         self.regex_texts = regex_texts
         self.href_regex = href_regex
@@ -41,11 +43,11 @@ class BaseFilter:
     def FilterByInnerText(self, elements:list[BeautifulSoup], regex) -> list[BeautifulSoup]:
         output = list(filter(lambda x: re.match(regex, x.text.strip()), elements))
         return output
+
     
     def FilterByHrefText(self, elements:list[BeautifulSoup], regex):
         output = list(filter(lambda x: re.match(regex, x['href']), elements))
         return output
-    
 
 
 class BaseStoller:
