@@ -13,3 +13,5 @@ analysis/AnalysisUFC/*.csv
 analysis/AnalysisUFC/*.csv
 analysis/AnalysisUFC/df*
 analysis/AnalysisUFC/.ipynb_checkpoints/
+
+*.csv
