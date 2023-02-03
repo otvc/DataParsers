@@ -7,33 +7,48 @@ from selenium.webdriver.remote.webelement import WebElement
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions
+from selenium.common.exceptions import ElementClickInterceptedException
 
 from collections.abc import Callable
 from bs4 import BeautifulSoup
+
+
+import logging
+from run_parser import log_settings
+logging.basicConfig(filename = 'parser_warning.log', level=logging.WARNING, **log_settings)
 
 class BaseFilter:
     '''
     This class needed to filtrate clickabble elements.
     In first step he filter element's by text which should satisfaction regular expression
     '''
-    def __init__(self, regex_texts:list[str] = None) -> None:
+
+    def __init__(self, regex_texts:list[str] = None, href_regex:list[str]=None) -> None:
         self.regex_texts = regex_texts
+        self.href_regex = href_regex
     
     def Filtration(self, elements):
         if self.regex_texts:
-            elements = self.FiltrationTextsByRegex(elements)
+            elements = self.FiltrationByRegex(elements, self.regex_texts, self.FilterByInnerText)
+        if self.href_regex:
+            elements = self.FiltrationByRegex(elements, self.href_regex, self.FilterByHrefText)
         return elements
-    
-    def FiltrationTextsByRegex(self, elements:list[BeautifulSoup]) -> list[BeautifulSoup]:
+
+    def FiltrationByRegex(self, elements:list[BeautifulSoup], regex_expressions:list[str], filter_func) -> list[BeautifulSoup]:
         filtered = elements
-        if self.regex_texts:
-            for regex_text in self.regex_texts:
-                filtered = self.FilterByInnerText(filtered, regex_text)
+        for regex_expr in regex_expressions:
+            filtered = filter_func(filtered, regex_expr)
         return filtered
     
     def FilterByInnerText(self, elements:list[BeautifulSoup], regex) -> list[BeautifulSoup]:
         output = list(filter(lambda x: re.match(regex, x.text.strip()), elements))
         return output
+
+    
+    def FilterByHrefText(self, elements:list[BeautifulSoup], regex):
+        output = list(filter(lambda x: re.match(regex, x['href']), elements))
+        return output
+
 
 class BaseStoller:
     '''
@@ -122,7 +137,7 @@ class BaseStoller:
                 #then recursion end.
                 #If we seen source (contained in history)
                 for node_xpath in elems_xpaths:
-                    pl_elements = WebDriverWait(self.driver, 5, self.driver.find_element_by_xpath(node_xpath)).until(
+                    pl_elements = WebDriverWait(self.driver, 10, self.driver.find_element_by_xpath(node_xpath)).until(
                                 expected_conditions.presence_of_element_located((By.XPATH, node_xpath))
                     )
                     self.StepClick(pl_elements, next_transition)
@@ -137,7 +152,11 @@ class BaseStoller:
             None
     '''
     def StepClick(self, element, transition_graph):
-        element.click()
+        try:
+            element.click()
+        except ElementClickInterceptedException as ex:
+            warning_message = f'Problem on URL: {self.driver.current_url}:\n{ex.msg}'
+            logging.warning(warning_message)
         self.Step(transition_graph, page_is_loaded=True)
         self.driver.back()
     

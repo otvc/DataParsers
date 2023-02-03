@@ -1,0 +1,39 @@
+base: &base
+  save_to_mongo: False
+  dbname: 'MainDatabase'
+  connection: '.'
+  viewed_pages_path: '.'
+  saved: False
+
+ufcstats:
+  <<: *base
+  base_source: 'http://www.ufcstats.com/statistics/events/completed'
+  collections:
+    - Tournaments
+    - Fights
+
+consult:
+  <<: *base
+  base_source: 'https://www.consultant.ru/popular/'
+  collections:
+    - CodesTypes
+    - CodesTree
+    - CodesParagraphs
+  graph:
+    {
+      'https://www.consultant.ru/popular/':{
+            '/document/cons_doc':
+            {
+                '/document/cons_doc_LAW': null
+            }
+        }
+    }
+
+yurist-online:
+  <<: *base
+  base_source: 'https://www.yurist-online.net/question/p/'
+  first_page_number: 1
+  last_page_number: 11887
+  collections:
+    - Questions
+    - Answers

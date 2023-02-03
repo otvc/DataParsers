@@ -550,6 +550,25 @@ class ParserConsult(Parser):
             codes[header] = self.GetListFromBlockquote(block_codes)
         
         return codes
+    
+    '''
+    Extract codes tree's.
+    For example from page:
+    https://www.consultant.ru/document/cons_doc_LAW_37800/
+    Args:
+        doc:BeautifulSoup or str - document with content from above url
+    Return:
+        dict graph with all codes tree
+        on end of tree graph is contained list of article names
+    '''
+    def GetCodesTree(self, doc):
+        if isinstance(doc, str):
+            doc = BeautifulSoup(doc, features='html.parser')
+        div_list = doc.find(attrs = {'class': 'document-page__toc'})
+        nested_list = div_list.find('ul')
+        codes_tree = self.ExtractNestedLists(nested_list)
+        return codes_tree
+
 
     '''
     Finding article paragraphs in on special dict on page with articles.
@@ -589,8 +608,12 @@ class ParserConsult(Parser):
             doc = BeautifulSoup(doc, features = 'html.parser')
         div_head = doc.find(attrs = {'class': 'document__style doc-style'})
         par_name = div_head.find('p')
-        article_name = par_name.contents[-1].text.strip()
-        part_of_name = re.search('Статья \d.*', article_name).group()
+        article_name = par_name.text.strip()
+        part_of_name = re.search('Статья *\d*(\.\d|) *([а-яА-Я]|\w|,|\"|,|\'|\.| )*', article_name)
+        if part_of_name:
+            part_of_name.group().strip()
+        else:
+            part_of_name = "Возможно, утратил силу" # из наблюдений
         return part_of_name
     
     '''
@@ -633,6 +656,7 @@ class ParserYuristOnline(Parser):
         4. Categories - list;
         5. Title - str;
         6. Datetime - str;
+        7. Id - int.
     Args:
         doc - str or BeautifulSoup object which equal information block
     Return:
@@ -665,8 +689,16 @@ class ParserYuristOnline(Parser):
         output['Categories'] = categories
 
         div_answers = doc.find(attrs = {'class': 'jurist-response-2'})
-        text_answers = div_answers.text.strip()
+        text_answers = div_answers.text.strip()#problem https://www.yurist-online.net/question/p/394 - Томара, 29.06.2020
         output['Answers'] = int(re.search('\d{1,}', text_answers)[0])
+
+        div_qdetails = doc.find(attrs = {'class': 'question-details'})
+        attr_id = div_qdetails.get_attribute_list('id')
+        id = None
+        if attr_id:
+            dirty_id = attr_id[0]
+            id = int(dirty_id[1:])
+        output['Id'] = id        
 
         return output
 
@@ -719,8 +751,7 @@ class ParserYuristOnline(Parser):
             doc = BeautifulSoup(doc, features='html.parser')
         
         main_block = doc.find(attrs = {'class': 'main-block'})
-        div_wb = main_block.find(attrs = {'class': 'wb'})
-        divs_question = div_wb.find_all(attrs = {'class': 'white-block'})
+        divs_question = main_block.find_all(attrs = {'class': 'white-block'})
 
         output = []
         for div_q in divs_question:
@@ -748,4 +779,40 @@ class ParserYuristOnline(Parser):
         for div_answer in divs_answers:
             answers.append(self.GetAnswerInformation(div_answer))
         return answers 
-        
+
+    '''
+    Extract text of question from page with question:
+    Page  example:
+    https://www.yurist-online.net/question/176642
+
+    Full text question at the moment contain in div with class, which equal "question-details"
+    Args:
+        doc:BeautifulSoup or str - document with content from above url
+    Return:
+        str with full text of question
+    '''
+    def GetQuestionText(self, doc):
+        if isinstance(doc, str):
+            doc = BeautifulSoup(doc, features='html.parser')
+        div_question = doc.find(attrs={'class':  'question-details'})
+        question = div_question.text.strip()
+        return question
+
+    '''
+    Extract question and answers from question page
+    Page example:
+    https://www.yurist-online.net/question/176642
+
+    Args:
+        doc:BeautifulSoup or str - document with content from above url
+    Return:
+        tuple(str, list[dict]).
+        1. About str see description GetQuestionText
+        2. About list[dict] see description GetAllAnswers
+    '''
+    def GetQuestAndAnswers(self, doc):
+        question = self.GetQuestionText(doc)
+        answers = self.GetAllAnswers(doc)
+        return question, answers
+
+

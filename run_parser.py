@@ -1,19 +1,41 @@
 import argparse
 import os
+import logging
+import yaml
+from yaml.loader import SafeLoader
 
 from pymongo import MongoClient
 
-import model.DBWrapper
+from model import DBWrapper
 
-from model.Stroller import BaseStoller
-from model.BaseParse import ParserUFCStats
-from model.PEngine import UFCEngine
+from model.Stroller import BaseStoller, BaseFilter
+from model.BaseParse import ParserUFCStats, ParserConsult, ParserYuristOnline
+from model.PEngine import UFCEngine, ConsultEngine, YuristOnlineEngine
+
+log_settings = { 
+    'filemode': 'a', 'format':"%(asctime)s %(levelname)s %(message)s"
+}
+
+logging.basicConfig(filename = 'parser_error.log', level=logging.ERROR, **log_settings)
+logging.basicConfig(filename = 'parser_warning.log', level=logging.WARNING, **log_settings)
 
 def output(uri, count):
     os.system('cls')
     print(count)
 
-def run_engine(connection, dbname, saved, first_page, mongo):
+def select_db(mongo, collections, connection, dbname):
+    if not mongo:
+        mongodb = DBWrapper.KVDBCsv(connection, collections)
+    else:
+        mongodb = DBWrapper.KVDBMongo(connection, dbname, collections)
+    return mongodb
+
+def load_yalm_config(path):
+    with open(path, 'r') as f_yaml:
+        config = yaml.load(f_yaml, Loader=SafeLoader)
+    return config
+
+def run_UFCStatsEngine(settings):
     
     fight_page_graph = {
         'http://www.ufcstats.com/event-details':
@@ -24,43 +46,67 @@ def run_engine(connection, dbname, saved, first_page, mongo):
     }
     fight_page_graph['http://www.ufcstats.com/statistics/events/completed?page='] = fight_page_graph
     
-    transition_graph = {first_page: fight_page_graph}
+    transition_graph = {settings['base_source']: fight_page_graph}
 
     particular_attr = ['href', 'data-link']
 
     ufc_stoller = BaseStoller(transition_graph, particular_attr)
     ufc_parser = ParserUFCStats()
 
-    collections = ['Tournaments', 'Fights']
-    collection_names = {'tournaments': 'Tournaments', 'fights':'Fights'}
-    if not mongo:
-        ufc_mongodb = DBWrapper.KVDBCsv(connection, collections)
-    else:
-        ufc_mongodb = DBWrapper.KVDBMongo(connection, dbname, collections)
+    collections = settings['collections']
+    collection_names = {'tournaments': collections[0], 'fights': collections[1]}
+    ufc_mongodb = select_db(settings['save_to_mongo'], collections, settings['connection'], settings['dbname'])
 
-    ufc_engine = UFCEngine(ufc_stoller, ufc_parser, ufc_mongodb, collection_names, is_saved=saved)
+    ufc_engine = UFCEngine(ufc_stoller, ufc_parser, ufc_mongodb, collection_names, is_saved=settings['saved'])
     ufc_engine.Run()
 
+def run_ConsultEngine(settings):
+    graph_parse = settings['graph']
+    filters = dict()
+    filters['/document/cons_doc_LAW'] = BaseFilter(['Статья \d+'])
+    particular_attr = ['href']
+    stroller = BaseStoller(graph_parse, particular_attr, filters=filters)
+    parser = ParserConsult()
+
+    collections = settings['collections']
+    collection_names = {'CodesTypes': collections[0], 'CodesTree':collections[1], 'CodesParagraphs': collections[2]}
+    db = select_db(settings['save_to_mongo'], collections, settings['connection'], settings['dbname'])
+    engine = ConsultEngine(stroller, parser, db, collection_names, is_saved=settings['saved'])
+    engine.Run()
+
+def run_YuristEngine(settings):
+    first_page = settings['base_source']
+    first_page_number, last_page_number = settings['first_page_number'], settings['last_page_number'] 
+    graph_parse = {first_page + f'{page_num}':{'/question/': None} for page_num in range(first_page_number, last_page_number)}
+
+    filters = {}
+    filters['/question/'] = BaseFilter(href_regex=['\/question\/\d+'])
+
+    collections = settings['collections']
+    collection_names = {'Questions':collections[0], 'Answers': collections[1]}
+    db = select_db(settings['save_to_mongo'], collections, settings['connection'], settings['dbname'])
+
+    particular_attr = ['href']
+    stroller = BaseStoller(graph_parse, particular_attr, filters = filters)
+    parser = ParserYuristOnline()
+    engine = YuristOnlineEngine(stroller, parser, db, collection_names, is_saved=settings['saved'])
+    engine.Run()
+
+def run_engine(parser, path_config):
+    map_parser_run = {'ufcstats': run_UFCStatsEngine, 'consult': run_ConsultEngine, 'yurist-online': run_YuristEngine}
+    config = load_yalm_config(path_config)
+    map_parser_run[parser](config[parser])
 
 def get_settings():
-    arg_getter = argparse.ArgumentParser(prog = "UFCParser", description = "It's program parse www.ufcstats.com")
-    arg_getter.add_argument('-c','--connection',
-                             default = 'mongodb://localhost:27017',
-                             help = 'connection uri to db or file to dir if you want save to csv',)
-    arg_getter.add_argument('-d', '--dbname', default = 'StatsUFC', help='name of database in mongo')
-    arg_getter.add_argument('-s', '--saved', dest='saved', action='store_true', help='indicates that parser condition was saved')
-    arg_getter.add_argument('-fp', '--first_page', default = 'http://www.ufcstats.com/statistics/events/completed')
-    arg_getter.add_argument('-m', action = 'store_true', dest = 'mongo', help = 'if you don\'t want save in csv')
+    arg_getter  = argparse.ArgumentParser(prog = 'DParser', description = "It's with different parsers")
+    parsers = ['ufcstats', 'consult', 'yurist-online']
+    arg_getter.add_argument('-p', '--parser', choices = parsers, default = parsers[1])
+    arg_getter.add_argument('-c', '--config',  default='./config/config.yaml',  help='file with settings for parsers')
 
     args = arg_getter.parse_args()
-
-    if not args.mongo and args.connection.startswith('mongodb'):
-        args.connection = '.'
-
-    return args.connection, args.dbname, args.saved, args.first_page, args.mongo
+    return args.parser, args.config
 
 if __name__ == '__main__':
-    connection, dbname, saved, first_page, mongo =  get_settings()
-    run_engine(connection, dbname, saved, first_page, mongo)
-
+    parser, path_config =  get_settings()
+    run_engine(parser, path_config)
 
