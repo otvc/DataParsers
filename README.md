@@ -18,19 +18,12 @@ Another configurations of using is shown in block ```Configuration```
 ## Flags
 When you use running `run_parser.py`, the following flags are available:
 
-    - `-c`, `--connection` contain connection string if you want save data in mongodb
-    - `-d`, `--dbname`, contain name of database in mongo
-    - `-s`, `--saved`, checked if you used parser and want start from the saved results
-    - `-fp`, `--first_page`, contained first page, from which you want start (on this moment work only for ufcstats)
-    - `-m`, checked if you want use mongo db
-    - `-p`,  `--parsers`, use for choose cite which you want parse and chose from ['ufcstats', 'consult']
+    - `-p`,  `--parsers`, use for choose cite which you want parse and chose from ['ufcstats', 'consult', 'yurist-online']
+    - `-c`, `--config`, link to file with configuration for each parser
+If you want to see all settings, then check [config](./config) folder
 
 By default:
 ```
-connection = 'mongodb://localhost:27017',
-dbname = StatsUFC,
-saved = False,
-first_page = 'http://www.ufcstats.com/statistics/events/completed'
-m = False
-parsers = ufcstats
+-p = ufcstats
+-c = './config/config.yaml'
 ```

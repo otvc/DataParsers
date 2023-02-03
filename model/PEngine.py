@@ -3,10 +3,7 @@ sys.path.append('../StatsUFC/model')
 
 import logging
 from collections.abc import Callable
-
-log_settings = { 
-    'filemode': 'w', 'format':"%(asctime)s %(levelname)s %(message)s"
-}
+from run_parser import log_settings
 
 logging.basicConfig(filename = 'parser_error.log', level=logging.ERROR, **log_settings)
 logging.basicConfig(filename = 'parser_warning.log', level=logging.WARNING, **log_settings)
@@ -40,12 +37,14 @@ class ParserEngine:
         self.cus_pos_handler = сur_pos_handler
         self.path_to_save = path_to_save
         self.stoller.setPageProcessed(self.HistoryCallback)
+        self.current_url = None
         if is_saved:
             self.LoadViewed()
         else:
             self.viewed_pages = {}
     
     def HistoryCallback(self, url, document):
+        self.current_url = url
         if self.cus_pos_handler:
             self.cus_pos_handler(url, len(self.viewed_pages))
         self.DocumentHandler(url, document)
@@ -55,10 +54,13 @@ class ParserEngine:
         pass
 
     def Run(self):
-        # try:
-        self.stoller.StartWandering()
-        # except Exception as e:
-            # logging.error(str(e))
+        try:
+            self.stoller.StartWandering()
+        except AttributeError as ae:
+            logging.error(str(ae))
+        except IndexError as index_error:
+            logging.error(str(index_error))
+            logging.error(self.current_url)
     
     def SaveURI(self, uri):
         with open('viewed_pages.txt', 'a') as f:
@@ -102,7 +104,7 @@ class UFCEngine(ParserEngine):
             self.database.insert_one(self.fight_collection, fight_stats)
         #Parser may have problems if tournament is empty
         except Exception as ae:
-            logging.warning(str(ae))
+            logging.warning(ae)
 
 
 class ConsultEngine(ParserEngine):

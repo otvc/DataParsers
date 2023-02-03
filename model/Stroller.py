@@ -12,6 +12,9 @@ from selenium.common.exceptions import ElementClickInterceptedException
 from collections.abc import Callable
 from bs4 import BeautifulSoup
 
+import logging
+from run_parser import log_settings
+logging.basicConfig(filename = 'parser_warning.log', level=logging.WARNING, **log_settings)
 
 class BaseFilter:
     '''
@@ -150,7 +153,8 @@ class BaseStoller:
         try:
             element.click()
         except ElementClickInterceptedException as ex:
-            print(ex.msg)
+            warning_message = f'Problem on URL: {self.driver.current_url}:\n{ex.msg}'
+            logging.warning(warning_message)
         self.Step(transition_graph, page_is_loaded=True)
         self.driver.back()
     
