@@ -3,7 +3,7 @@ geckodriver.log
 tests/Pages
 tests/Databases
 tests/Data
-chromedriver.exe
+chromedriver*
 parser_error.log
 parser_warning.log
 test.py
@@ -15,3 +15,4 @@ analysis/AnalysisUFC/df*
 analysis/AnalysisUFC/.ipynb_checkpoints/
 
 *.csv
+*.txt
