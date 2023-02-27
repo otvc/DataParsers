@@ -611,7 +611,7 @@ class ParserConsult(Parser):
         article_name = par_name.text.strip()
         part_of_name = re.search('Статья *\d*(\.\d|) *([а-яА-Я]|\w|,|\"|,|\'|\.| )*', article_name)
         if part_of_name:
-            part_of_name.group().strip()
+            part_of_name = part_of_name.group().strip()
         else:
             part_of_name = "Возможно, утратил силу" # из наблюдений
         return part_of_name

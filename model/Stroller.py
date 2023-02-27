@@ -8,12 +8,17 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions
 from selenium.common.exceptions import ElementClickInterceptedException
+from selenium.common.exceptions import NoSuchElementException
 
 from collections.abc import Callable
 from bs4 import BeautifulSoup
 
+
 import logging
-from run_parser import log_settings
+
+import sys
+sys.path.append('.')
+from Logger import log_settings
 logging.basicConfig(filename = 'parser_warning.log', level=logging.WARNING, **log_settings)
 
 class BaseFilter:
@@ -67,12 +72,14 @@ class BaseStoller:
     '''
     def __init__(self, transition_graph:dict,
                        particular_attr:list[str],
-                       page_processed: Callable[[str, str]] = lambda x,y: x,
-                       filters:dict[BaseFilter]= None) -> None:
+                       page_processed: Callable[[str], str] = lambda x,y: x,
+                       filters:dict[BaseFilter]= None,
+                       viewed_pages:dict = {}) -> None:
         self.transition_graph = transition_graph
         self.page_processed = page_processed
         self.particular_attr = particular_attr
         self.filters = filters
+        self.viewed_pages = viewed_pages
         self.set_options()
         self.set_driver()
 
@@ -83,9 +90,7 @@ class BaseStoller:
     '''
     def set_options(self):
         self.options = Options()
-        self.options.headless = True
-        self.options.add_argument('--window-size=1920,1080')
-        self.options.add_argument('start-maximized')
+        self.options.add_argument('--headless')
 
         chrome_options = webdriver.ChromeOptions()
         chrome_options.add_experimental_option(
@@ -93,7 +98,8 @@ class BaseStoller:
         )
 
     def set_driver(self):
-        self.driver = webdriver.Chrome()
+        self.driver = webdriver.Chrome('./model/chromedriver', options = self.options)
+        
 
     '''
     Function which start wandering
@@ -126,6 +132,8 @@ class BaseStoller:
             self.history.append(current_page)
             if not page_is_loaded:
                 self.driver.get(current_page)
+            if self.driver.current_url in self.viewed_pages:
+                return
             self.page_processed(self.driver.current_url, self.driver.page_source)
             if next_transition: # if next page is not none. If page is None that it's mean stop 
                 base_sources = list(next_transition.keys())
@@ -135,8 +143,8 @@ class BaseStoller:
                 #then recursion end.
                 #If we seen source (contained in history)
                 for node_xpath in elems_xpaths:
-                    pl_elements = WebDriverWait(self.driver, 10, self.driver.find_element_by_xpath(node_xpath)).until(
-                                expected_conditions.presence_of_element_located((By.XPATH, node_xpath))
+                    pl_elements = WebDriverWait(self.driver, 100, self.driver.find_element('xpath', node_xpath)).until(
+                                expected_conditions.element_to_be_clickable((By.XPATH, node_xpath))
                     )
                     self.StepClick(pl_elements, next_transition)
 
@@ -151,12 +159,12 @@ class BaseStoller:
     '''
     def StepClick(self, element, transition_graph):
         try:
-            element.click()
+            self.driver.execute_script('arguments[0].click();', element)
+            self.Step(transition_graph, page_is_loaded=True)
+            self.driver.back()
         except ElementClickInterceptedException as ex:
             warning_message = f'Problem on URL: {self.driver.current_url}:\n{ex.msg}'
             logging.warning(warning_message)
-        self.Step(transition_graph, page_is_loaded=True)
-        self.driver.back()
     
     def ConvertNodesToXpaths(self, elements:list[BeautifulSoup]):
         return [self.GetXpath(node) for node in elements] 
@@ -215,7 +223,7 @@ class BaseStoller:
         Args:
             page_processed: same as in __init__
     '''
-    def setPageProcessed(self, page_processed: Callable[[str, str]]):
+    def setPageProcessed(self, page_processed: Callable[[str, str], str]):
         self.page_processed = page_processed
 
     '''

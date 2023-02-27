@@ -1,8 +1,8 @@
 base: &base
   save_to_mongo: False
   dbname: 'MainDatabase'
-  connection: '.'
-  viewed_pages_path: '.'
+  connection: ''
+  viewed_pages_path: 'viewed_pages.txt'
   saved: False
 
 ufcstats:

@@ -8,16 +8,12 @@ from pymongo import MongoClient
 
 from model import DBWrapper
 
+
 from model.Stroller import BaseStoller, BaseFilter
 from model.BaseParse import ParserUFCStats, ParserConsult, ParserYuristOnline
 from model.PEngine import UFCEngine, ConsultEngine, YuristOnlineEngine
 
-log_settings = { 
-    'filemode': 'a', 'format':"%(asctime)s %(levelname)s %(message)s"
-}
 
-logging.basicConfig(filename = 'parser_error.log', level=logging.ERROR, **log_settings)
-logging.basicConfig(filename = 'parser_warning.log', level=logging.WARNING, **log_settings)
 
 def output(uri, count):
     os.system('cls')
@@ -35,6 +31,12 @@ def load_yalm_config(path):
         config = yaml.load(f_yaml, Loader=SafeLoader)
     return config
 
+def load_viewed_pages(path):
+    with open('viewed_pages.txt', 'r') as f:
+        pages = f.readlines()
+    pages = list(map(lambda x: x.strip(), pages))
+    return dict.fromkeys(pages)
+
 def run_UFCStatsEngine(settings):
     
     fight_page_graph = {
@@ -49,8 +51,8 @@ def run_UFCStatsEngine(settings):
     transition_graph = {settings['base_source']: fight_page_graph}
 
     particular_attr = ['href', 'data-link']
-
-    ufc_stoller = BaseStoller(transition_graph, particular_attr)
+    viewed_pages = load_viewed_pages(settings['viewed_pages_path'])
+    ufc_stoller = BaseStoller(transition_graph, particular_attr, viewed_pages=viewed_pages)
     ufc_parser = ParserUFCStats()
 
     collections = settings['collections']
@@ -62,10 +64,11 @@ def run_UFCStatsEngine(settings):
 
 def run_ConsultEngine(settings):
     graph_parse = settings['graph']
+    viewed_pages = load_viewed_pages(settings['viewed_pages_path'])
     filters = dict()
     filters['/document/cons_doc_LAW'] = BaseFilter(['Статья \d+'])
     particular_attr = ['href']
-    stroller = BaseStoller(graph_parse, particular_attr, filters=filters)
+    stroller = BaseStoller(graph_parse, particular_attr, filters=filters, viewed_pages=viewed_pages)
     parser = ParserConsult()
 
     collections = settings['collections']
@@ -83,11 +86,12 @@ def run_YuristEngine(settings):
     filters['/question/'] = BaseFilter(href_regex=['\/question\/\d+'])
 
     collections = settings['collections']
-    collection_names = {'Questions':collections[0], 'Answers': collections[1]}
+    collection_names = {'Questions':collections[0], 'Answers': collections[1]}  
     db = select_db(settings['save_to_mongo'], collections, settings['connection'], settings['dbname'])
 
     particular_attr = ['href']
-    stroller = BaseStoller(graph_parse, particular_attr, filters = filters)
+    viewed_pages = load_viewed_pages(settings['viewed_pages_path'])
+    stroller = BaseStoller(graph_parse, particular_attr, filters = filters, viewed_pages=viewed_pages)
     parser = ParserYuristOnline()
     engine = YuristOnlineEngine(stroller, parser, db, collection_names, is_saved=settings['saved'])
     engine.Run()

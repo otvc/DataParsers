@@ -3,7 +3,7 @@ sys.path.append('../StatsUFC/model')
 
 import logging
 from collections.abc import Callable
-from run_parser import log_settings
+from Logger import log_settings
 
 logging.basicConfig(filename = 'parser_error.log', level=logging.ERROR, **log_settings)
 logging.basicConfig(filename = 'parser_warning.log', level=logging.WARNING, **log_settings)
@@ -27,7 +27,7 @@ class ParserEngine:
                        parser:Parser, 
                        database:KVDBWrapper,
                        collections:dict[str],
-                       сur_pos_handler:Callable[[str, int]] = None,
+                       сur_pos_handler:Callable[[str], str] = None,
                        is_saved = False,
                        path_to_save = 'viewed_pages.txt') -> None:
         self.stoller = stoller
@@ -78,7 +78,7 @@ class UFCEngine(ParserEngine):
                        parser:Parser, 
                        database: KVDBWrapper,
                        collections:dict[str],
-                       cur_pos_handler: Callable[[str, int]] = None,
+                       cur_pos_handler: Callable[[str], str] = None,
                        is_saved = False,
                        path_to_save = 'viewed_pages.txt') -> None:
         super().__init__(stoller, parser, database, collections, cur_pos_handler, is_saved, path_to_save)
@@ -113,7 +113,7 @@ class ConsultEngine(ParserEngine):
                        parser: Parser,
                        database: KVDBWrapper, 
                        collections: dict[str], 
-                       сur_pos_handler: Callable[[str, int]] = None, 
+                       сur_pos_handler: Callable[[str], int] = None, 
                        is_saved=False, 
                        path_to_save='viewed_pages.txt') -> None:
         super().__init__(stoller, parser, database, collections, сur_pos_handler, is_saved, path_to_save)
@@ -123,7 +123,7 @@ class ConsultEngine(ParserEngine):
         self.codes_types_coll = self.collections['CodesTypes']
         self.codes_tree_coll = self.collections['CodesTree']
         self.codes_par_coll = self.collections['CodesParagraphs']
-
+        self.current_codes_id = 0  # load from saved
     
     def DocumentHandler(self, url:str, document):
         if url in self.viewed_pages:
@@ -134,6 +134,7 @@ class ConsultEngine(ParserEngine):
             self.ArticleHandler(document)
         elif re.match(self.reg_toc, url):
             self.TableOfContentHandler(document)
+            self.current_codes_id += 1
     
     def CodesHandler(self, doc):
         codes_types = self.parser.GetAllPopularCodes(doc)
@@ -150,13 +151,13 @@ class ConsultEngine(ParserEngine):
     def TableOfContentHandler(self, doc):
         tree_of_content = self.parser.GetCodesTree(doc)
         try:
-            last_id = self.database.get_last_index(self.codes_tree_coll, index_col = 'Id')
+            last_id = self.database.get_last_index(self.codes_tree_coll, index_col = 'Id') + 1
         except FileNotFoundError:
             last_id = 0
 
         content_table_format = {'Id': [], 'Parent': [], 'Name': []}
         ConsultEngine.ConvertTreeToTable(tree_of_content, content_table_format, current_id = last_id, parent = -1)
-        
+        content_table_format['CodesId'] = [self.current_codes_id]*len(content_table_format['Id'])
         self.database.insert_many(self.codes_tree_coll, content_table_format)
 
     def ArticleHandler(self, doc):
@@ -168,7 +169,7 @@ class ConsultEngine(ParserEngine):
                                                    value = paragraphs['Name'],
                                                    index_col = 'Id')
         try:
-            last_id = self.database.get_last_index(self.codes_types_coll, index_col = 'Id')
+            last_id = self.database.get_last_index(self.codes_par_coll, index_col = 'Id')+1
         except FileNotFoundError:
             last_id = 0
 
@@ -218,7 +219,7 @@ class YuristOnlineEngine(ParserEngine):
                  parser: Parser, 
                  database: KVDBWrapper, 
                  collections: dict[str], 
-                 сur_pos_handler: Callable[[str, int]] = None,
+                 сur_pos_handler: Callable[[str], int] = None,
                  is_saved=False, 
                  path_to_save='viewed_pages.txt') -> None:
         super().__init__(stoller, parser, database, collections, сur_pos_handler, is_saved, path_to_save)

@@ -73,7 +73,7 @@ class KVDBCsv(KVDBWrapper):
             if collection.index.empty:
                 index = -1
             else:
-                index = collection.index.max()
+                index = collection.index.values.max()
         else:
             raise FileNotFoundError()
         return index
@@ -89,7 +89,7 @@ class KVDBCsv(KVDBWrapper):
         return index
     
     def __create_source(self, collection):
-        return self.connection + '\\' + collection + '.csv'
+        return self.connection + collection + '.csv'
 
 
     
